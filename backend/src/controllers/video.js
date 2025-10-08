@@ -1,0 +1,443 @@
+const { Op } = require("sequelize");
+const {
+  User,
+  Video,
+  VideoLike,
+  Comment,
+  View,
+  Subscription,
+} = require("../sequelize");
+const asyncHandler = require("../middlewares/asyncHandler");
+
+exports.newVideo = asyncHandler(async (req, res, next) => {
+  let videoData = {
+    ...req.body,
+    userId: req.user.id,
+  };
+
+  // Handle file upload if present
+  if (req.files && req.files.videoFile) {
+    const videoFile = req.files.videoFile[0];
+    videoData = {
+      ...videoData,
+      videoFile: videoFile.buffer,
+      fileName: videoFile.originalname,
+      fileSize: videoFile.size,
+      mimeType: videoFile.mimetype,
+      uploadType: 'file',
+      url: null, // Clear URL if file is uploaded
+    };
+    
+    // For file uploads, thumbnail is optional
+    // If no thumbnail provided, we can set a default or leave it empty
+    if (!videoData.thumbnail) {
+      videoData.thumbnail = 'https://via.placeholder.com/320x180.png?text=Video+Thumbnail'; // Default thumbnail
+    }
+  } else {
+    videoData.uploadType = 'url';
+    
+    // For URL uploads, thumbnail is required
+    if (!videoData.thumbnail) {
+      return next({
+        message: "Thumbnail is required for URL uploads",
+        statusCode: 400,
+      });
+    }
+  }
+
+  // Handle thumbnail file upload if present
+  if (req.files && req.files.thumbnailFile) {
+    const thumbnailFile = req.files.thumbnailFile[0];
+    videoData = {
+      ...videoData,
+      thumbnailFile: thumbnailFile.buffer,
+      thumbnailFileName: thumbnailFile.originalname,
+      thumbnailFileSize: thumbnailFile.size,
+      thumbnailMimeType: thumbnailFile.mimetype,
+      // Clear thumbnail URL if file is uploaded
+      thumbnail: null,
+    };
+  }
+
+  const video = await Video.create(videoData);
+
+  res.status(200).json({ success: true, data: video });
+});
+
+// New endpoint to serve video files
+exports.getVideoFile = asyncHandler(async (req, res, next) => {
+  const video = await Video.findByPk(req.params.id, {
+    attributes: ['videoFile', 'fileName', 'mimeType', 'fileSize', 'uploadType']
+  });
+
+  if (!video) {
+    return next({
+      message: `No video found for ID - ${req.params.id}`,
+      statusCode: 404,
+    });
+  }
+
+  if (video.uploadType !== 'file' || !video.videoFile) {
+    return next({
+      message: 'Video file not available',
+      statusCode: 404,
+    });
+  }
+
+  // Set appropriate headers
+  res.set({
+    'Content-Type': video.mimeType || 'video/mp4',
+    'Content-Length': video.fileSize,
+    'Content-Disposition': `inline; filename="${video.fileName}"`,
+    'Accept-Ranges': 'bytes',
+  });
+
+  // Handle range requests for video streaming
+  const range = req.headers.range;
+  if (range) {
+    const parts = range.replace(/bytes=/, "").split("-");
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : video.fileSize - 1;
+    const chunksize = (end - start) + 1;
+    
+    res.status(206).set({
+      'Content-Range': `bytes ${start}-${end}/${video.fileSize}`,
+      'Content-Length': chunksize,
+    });
+    
+    const chunk = video.videoFile.slice(start, end + 1);
+    res.send(chunk);
+  } else {
+    res.send(video.videoFile);
+  }
+});
+
+// New endpoint to serve thumbnail files
+exports.getThumbnailFile = asyncHandler(async (req, res, next) => {
+  const video = await Video.findByPk(req.params.id, {
+    attributes: ['thumbnailFile', 'thumbnailFileName', 'thumbnailMimeType', 'thumbnailFileSize', 'thumbnail']
+  });
+
+  if (!video) {
+    return next({
+      message: `No video found for ID - ${req.params.id}`,
+      statusCode: 404,
+    });
+  }
+
+  // Check if thumbnail file exists
+  if (video.thumbnailFile) {
+    // Serve thumbnail file
+    res.set({
+      'Content-Type': video.thumbnailMimeType || 'image/jpeg',
+      'Content-Length': video.thumbnailFileSize,
+      'Content-Disposition': `inline; filename="${video.thumbnailFileName}"`,
+    });
+
+    res.send(video.thumbnailFile);
+  } else if (video.thumbnail) {
+    // Redirect to thumbnail URL if file doesn't exist but URL does
+    res.redirect(video.thumbnail);
+  } else {
+    // Return default thumbnail if neither file nor URL exists
+    res.redirect('https://via.placeholder.com/320x180.png?text=Video+Thumbnail');
+  }
+});
+
+exports.getVideo = asyncHandler(async (req, res, next) => {
+  const video = await Video.findByPk(req.params.id, {
+    include: [
+      {
+        model: User,
+        attributes: ["id", "username", "avatar"],
+      },
+    ],
+  });
+
+  if (!video) {
+    return next({
+      message: `No video found for ID - ${req.params.id}`,
+      statusCode: 404,
+    });
+  }
+
+  const comments = await video.getComments({
+    order: [["createdAt", "DESC"]],
+    attributes: ["id", "text", "createdAt"],
+    include: [
+      {
+        model: User,
+        attributes: ["id", "username", "avatar"],
+      },
+    ],
+  });
+
+  // User-specific data only if authenticated
+  let isLiked = false;
+  let isDisliked = false;
+  let isSubscribed = false;
+  let isViewed = false;
+  let isVideoMine = false;
+
+  if (req.user) {
+    const likedResult = await VideoLike.findOne({
+      where: {
+        [Op.and]: [
+          { videoId: req.params.id },
+          { userId: req.user.id },
+          { like: 1 },
+        ],
+      },
+    });
+
+    const dislikedResult = await VideoLike.findOne({
+      where: {
+        [Op.and]: [
+          { videoId: req.params.id },
+          { userId: req.user.id },
+          { like: -1 },
+        ],
+      },
+    });
+
+    const subscriptionResult = await Subscription.findOne({
+      where: {
+        subscriber: req.user.id,
+        subscribeTo: video.userId,
+      },
+    });
+
+    const viewResult = await View.findOne({
+      where: {
+        userId: req.user.id,
+        videoId: video.id,
+      },
+    });
+
+    isLiked = !!likedResult;
+    isDisliked = !!dislikedResult;
+    isSubscribed = !!subscriptionResult;
+    isViewed = !!viewResult;
+    isVideoMine = req.user.id === video.userId;
+  }
+
+  // Public data (available to everyone)
+  const commentsCount = await Comment.count({
+    where: {
+      videoId: req.params.id,
+    },
+  });
+
+  const likesCount = await VideoLike.count({
+    where: {
+      [Op.and]: [{ videoId: req.params.id }, { like: 1 }],
+    },
+  });
+
+  const dislikesCount = await VideoLike.count({
+    where: {
+      [Op.and]: [{ videoId: req.params.id }, { like: -1 }],
+    },
+  });
+
+  const views = await View.count({
+    where: {
+      videoId: req.params.id,
+    },
+  });
+
+  const subscribersCount = await Subscription.count({
+    where: { subscribeTo: video.userId },
+  });
+
+  // Set data values
+  video.setDataValue("comments", comments);
+  video.setDataValue("commentsCount", commentsCount);
+  video.setDataValue("isLiked", isLiked);
+  video.setDataValue("isDisliked", isDisliked);
+  video.setDataValue("likesCount", likesCount);
+  video.setDataValue("dislikesCount", dislikesCount);
+  video.setDataValue("views", views);
+  video.setDataValue("isVideoMine", isVideoMine);
+  video.setDataValue("isSubscribed", isSubscribed);
+  video.setDataValue("isViewed", isViewed);
+  video.setDataValue("subscribersCount", subscribersCount);
+
+  res.status(200).json({ success: true, data: video });
+});
+
+exports.likeVideo = asyncHandler(async (req, res, next) => {
+  const video = await Video.findByPk(req.params.id);
+
+  if (!video) {
+    return next({
+      message: `No video found for ID - ${req.params.id}`,
+      statusCode: 404,
+    });
+  }
+
+  const liked = await VideoLike.findOne({
+    where: {
+      userId: req.user.id,
+      videoId: req.params.id,
+      like: 1,
+    },
+  });
+
+  const disliked = await VideoLike.findOne({
+    where: {
+      userId: req.user.id,
+      videoId: req.params.id,
+      like: -1,
+    },
+  });
+
+  if (liked) {
+    await liked.destroy();
+  } else if (disliked) {
+    disliked.like = 1;
+    await disliked.save();
+  } else {
+    await VideoLike.create({
+      userId: req.user.id,
+      videoId: req.params.id,
+      like: 1,
+    });
+  }
+
+  res.json({ success: true, data: {} });
+});
+
+exports.dislikeVideo = asyncHandler(async (req, res, next) => {
+  const video = await Video.findByPk(req.params.id);
+
+  if (!video) {
+    return next({
+      message: `No video found for ID - ${req.params.id}`,
+      statusCode: 404,
+    });
+  }
+
+  const liked = await VideoLike.findOne({
+    where: {
+      userId: req.user.id,
+      videoId: req.params.id,
+      like: 1,
+    },
+  });
+
+  const disliked = await VideoLike.findOne({
+    where: {
+      userId: req.user.id,
+      videoId: req.params.id,
+      like: -1,
+    },
+  });
+
+  if (disliked) {
+    await disliked.destroy();
+  } else if (liked) {
+    liked.like = -1;
+    await liked.save();
+  } else {
+    await VideoLike.create({
+      userId: req.user.id,
+      videoId: req.params.id,
+      like: -1,
+    });
+  }
+
+  res.json({ success: true, data: {} });
+});
+
+exports.addComment = asyncHandler(async (req, res, next) => {
+  const video = await Video.findByPk(req.params.id);
+
+  if (!video) {
+    return next({
+      message: `No video found for ID - ${req.params.id}`,
+      statusCode: 404,
+    });
+  }
+
+  const comment = await Comment.create({
+    text: req.body.text,
+    userId: req.user.id,
+    videoId: req.params.id,
+  });
+
+  const User = {
+    id: req.user.id,
+    avatar: req.user.avatar,
+    username: req.user.username,
+  };
+
+  comment.setDataValue("User", User);
+
+  res.status(200).json({ success: true, data: comment });
+});
+
+exports.newView = asyncHandler(async (req, res, next) => {
+  const video = await Video.findByPk(req.params.id);
+
+  if (!video) {
+    return next({
+      message: `No video found for ID - ${req.params.id}`,
+      statusCode: 404,
+    });
+  }
+
+  // Only record view if user is authenticated
+  if (!req.user) {
+    return res.status(200).json({ success: true, data: { message: "View not recorded - user not authenticated" } });
+  }
+
+  const viewed = await View.findOne({
+    where: {
+      userId: req.user.id,
+      videoId: req.params.id,
+    },
+  });
+
+  if (viewed) {
+    return next({ message: "You already viewed this video", statusCode: 400 });
+  }
+
+  await View.create({
+    userId: req.user.id,
+    videoId: req.params.id,
+  });
+
+  res.status(200).json({ success: true, data: {} });
+});
+
+exports.searchVideo = asyncHandler(async (req, res, next) => {
+  if (!req.query.searchterm) {
+    return next({ message: "Please enter the searchterm", statusCode: 400 });
+  }
+
+  const videos = await Video.findAll({
+    attributes: ["id", "title", "description", "thumbnail", "createdAt", "category"],
+    include: { model: User, attributes: ["id", "avatar", "username"] },
+    where: {
+      [Op.or]: {
+        title: {
+          [Op.substring]: req.query.searchterm,
+        },
+        description: {
+          [Op.substring]: req.query.searchterm,
+        },
+      },
+    },
+  });
+
+  if (!videos.length)
+    return res.status(200).json({ success: true, data: videos });
+
+  for (const video of videos) {
+    const views = await View.count({ where: { videoId: video.id } });
+    video.setDataValue("views", views);
+  }
+
+  res.status(200).json({ success: true, data: videos });
+});
