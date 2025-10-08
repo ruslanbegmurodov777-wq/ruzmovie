@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import ThemeToggle from "./ThemeToggle";
 import "./Header.css";
 import profilesvg from "../img/profile.svg";
+import homeIcon from "../img/home-button.png";
 const Header = () => {
   const { user, logout, isAuthenticated, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
@@ -54,7 +55,13 @@ const Header = () => {
       <div className="header-container">
         <Link to="/" className="logo">
           <h1 className="logo-text">Ruzmovie</h1>
-          <div className="home-icon">🏠</div>
+          <div className="home-icon">
+            <img
+              src={homeIcon}
+              alt="home"
+              style={{ width: "25px", height: "25px" }}
+            />
+          </div>
         </Link>
 
         <form className="search-form" onSubmit={handleSearch}>
