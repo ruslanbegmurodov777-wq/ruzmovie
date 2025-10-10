@@ -4,11 +4,10 @@
   "description": "Full-stack movie streaming platform",
   "main": "backend/src/server.js",
   "scripts": {
-    "build": "node build.js",
-    "start": "cd backend && npm start",
-    "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm start\"",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "npm run build"
+    "build": "cd frontend && npm run build",
+    "start": "netlify dev",
+    "dev": "netlify dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "movie",
@@ -21,6 +20,20 @@
   "author": "Ruzmovie Team",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^7.6.0"
+    "concurrently": "^7.6.0",
+    "netlify-cli": "^17.3.0",
+    "serverless-http": "^3.2.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "mysql2": "^3.15.1",
+    "pg": "^8.2.1",
+    "pg-hstore": "^2.3.3",
+    "sequelize": "^6.2.3"
   }
 }

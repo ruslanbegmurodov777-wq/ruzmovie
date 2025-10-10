@@ -1,4 +1,4 @@
-require("dotenv").config({ path: require('path').join(__dirname, '../.env') });
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -10,15 +10,15 @@ const errorHandler = require("./middlewares/errorHandler");
 
 const app = express();
 
-// CORS configuration for production
+// CORS configuration for development
 const corsOptions = {
   origin: process.env.FRONTEND_URL || "http://localhost:3000",
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
 };
 
 // Middleware
-app.use(express.json({ limit: '10mb' })); // Limit JSON payload size
+app.use(express.json({ limit: "10mb" })); // Limit JSON payload size
 app.use(cors(corsOptions));
 
 // API Routes
@@ -28,10 +28,12 @@ app.use("/api/v1/videos", video);
 app.use("/api/v1/users", user);
 
 // Serve static files from the React app build directory with caching
-app.use(express.static(path.join(__dirname, "../../frontend/build"), {
-  maxAge: '1d', // Cache static files for 1 day
-  etag: true
-}));
+app.use(
+  express.static(path.join(__dirname, "../../frontend/build"), {
+    maxAge: "1d", // Cache static files for 1 day
+    etag: true,
+  })
+);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -46,7 +48,13 @@ app.get("*", (req, res) => {
 // Error handling middleware
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  // Silently start server without console log to reduce output
-});
+// Only start the server if this file is run directly (for local development)
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+// Export the app for use in Netlify functions
+module.exports = app;

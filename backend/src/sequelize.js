@@ -1,14 +1,20 @@
 const { Sequelize, DataTypes } = require("sequelize");
 const bcrypt = require("bcryptjs");
 
-const sequelize = new Sequelize("movie", "root", "ruslanbek777", {
-  host: "127.0.0.1",
-  port: 3306,
-  dialect: "mysql",
-  logging: false,
-});
+// Use environment variables with fallbacks for Railway deployment
+const sequelize = new Sequelize(
+  process.env.DB_NAME || "movie",
+  process.env.DB_USER || "root",
+  process.env.DB_PASS || "ruslanbek777",
+  {
+    host: process.env.DB_HOST || "127.0.0.1",
+    port: process.env.DB_PORT || 3306,
+    dialect: process.env.DB_DIALECT || "mysql",
+    logging: false,
+  }
+);
 
-// Ulanishni tekshirish
+// Connection check
 (async () => {
   try {
     await sequelize.authenticate();
@@ -21,7 +27,7 @@ const sequelize = new Sequelize("movie", "root", "ruslanbek777", {
   }
 })();
 
-// Model importlari
+// Model imports
 const User = require("./models/User")(sequelize, DataTypes);
 const Video = require("./models/Video")(sequelize, DataTypes);
 const VideoLike = require("./models/VideoLike")(sequelize, DataTypes);

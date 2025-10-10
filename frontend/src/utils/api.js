@@ -1,9 +1,9 @@
 // Utility functions for API calls
 import axios from 'axios';
 
-// Create an axios instance with the base URL from environment variable
+// Create an axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000'
+  baseURL: '/api' // Netlify functions will be available at /api/*
 });
 
 /**
@@ -12,7 +12,7 @@ const api = axios.create({
  */
 export const fetchVideos = async () => {
   try {
-    const response = await api.get('/api/v1/videos');
+    const response = await api.get('/v1/videos');
     return response.data.data;
   } catch (error) {
     console.error('Error fetching videos:', error);
@@ -27,7 +27,7 @@ export const fetchVideos = async () => {
  */
 export const fetchVideo = async (id) => {
   try {
-    const response = await api.get(`/api/v1/videos/${id}`);
+    const response = await api.get(`/v1/videos/${id}`);
     return response.data.data;
   } catch (error) {
     console.error(`Error fetching video ${id}:`, error);
@@ -42,7 +42,7 @@ export const fetchVideo = async (id) => {
  */
 export const searchVideos = async (searchTerm) => {
   try {
-    const response = await api.get(`/api/v1/videos/search?searchterm=${encodeURIComponent(searchTerm)}`);
+    const response = await api.get(`/v1/videos/search?searchterm=${encodeURIComponent(searchTerm)}`);
     return response.data.data;
   } catch (error) {
     console.error(`Error searching videos for "${searchTerm}":`, error);
