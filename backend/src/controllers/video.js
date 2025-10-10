@@ -9,6 +9,10 @@ const {
 } = require("../sequelize");
 const asyncHandler = require("../middlewares/asyncHandler");
 
+// Cache for frequently accessed data
+const videoCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 exports.newVideo = asyncHandler(async (req, res, next) => {
   let videoData = {
     ...req.body,
@@ -25,13 +29,12 @@ exports.newVideo = asyncHandler(async (req, res, next) => {
       fileSize: videoFile.size,
       mimeType: videoFile.mimetype,
       uploadType: 'file',
-      url: null, // Clear URL if file is uploaded
+      url: null,
     };
     
     // For file uploads, thumbnail is optional
-    // If no thumbnail provided, we can set a default or leave it empty
-    if (!videoData.thumbnail) {
-      videoData.thumbnail = 'https://via.placeholder.com/320x180.png?text=Video+Thumbnail'; // Default thumbnail
+    if (!videoData.thumbnail && !videoData.thumbnailFile) {
+      videoData.thumbnail = 'https://via.placeholder.com/320x180.png?text=Video+Thumbnail';
     }
   } else {
     videoData.uploadType = 'url';
@@ -54,12 +57,18 @@ exports.newVideo = asyncHandler(async (req, res, next) => {
       thumbnailFileName: thumbnailFile.originalname,
       thumbnailFileSize: thumbnailFile.size,
       thumbnailMimeType: thumbnailFile.mimetype,
-      // Clear thumbnail URL if file is uploaded
-      thumbnail: null,
     };
+    
+    // Only set thumbnail to null if we're storing the file
+    if (!videoData.thumbnail) {
+      videoData.thumbnail = null;
+    }
   }
 
   const video = await Video.create(videoData);
+  
+  // Clear cache when new video is added
+  videoCache.clear();
 
   res.status(200).json({ success: true, data: video });
 });
@@ -144,7 +153,30 @@ exports.getThumbnailFile = asyncHandler(async (req, res, next) => {
   }
 });
 
+// Helper function to get cached video data
+const getCachedVideoData = (videoId) => {
+  const cached = videoCache.get(videoId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  return null;
+};
+
+// Helper function to set cached video data
+const setCachedVideoData = (videoId, data) => {
+  videoCache.set(videoId, {
+    data,
+    timestamp: Date.now()
+  });
+};
+
 exports.getVideo = asyncHandler(async (req, res, next) => {
+  // Check cache first
+  const cachedData = getCachedVideoData(req.params.id);
+  if (cachedData) {
+    return res.status(200).json({ success: true, data: cachedData });
+  }
+
   const video = await Video.findByPk(req.params.id, {
     include: [
       {
@@ -180,39 +212,38 @@ exports.getVideo = asyncHandler(async (req, res, next) => {
   let isVideoMine = false;
 
   if (req.user) {
-    const likedResult = await VideoLike.findOne({
-      where: {
-        [Op.and]: [
-          { videoId: req.params.id },
-          { userId: req.user.id },
-          { like: 1 },
-        ],
-      },
-    });
-
-    const dislikedResult = await VideoLike.findOne({
-      where: {
-        [Op.and]: [
-          { videoId: req.params.id },
-          { userId: req.user.id },
-          { like: -1 },
-        ],
-      },
-    });
-
-    const subscriptionResult = await Subscription.findOne({
-      where: {
-        subscriber: req.user.id,
-        subscribeTo: video.userId,
-      },
-    });
-
-    const viewResult = await View.findOne({
-      where: {
-        userId: req.user.id,
-        videoId: video.id,
-      },
-    });
+    const [likedResult, dislikedResult, subscriptionResult, viewResult] = await Promise.all([
+      VideoLike.findOne({
+        where: {
+          [Op.and]: [
+            { videoId: req.params.id },
+            { userId: req.user.id },
+            { like: 1 },
+          ],
+        },
+      }),
+      VideoLike.findOne({
+        where: {
+          [Op.and]: [
+            { videoId: req.params.id },
+            { userId: req.user.id },
+            { like: -1 },
+          ],
+        },
+      }),
+      Subscription.findOne({
+        where: {
+          subscriber: req.user.id,
+          subscribeTo: video.userId,
+        },
+      }),
+      View.findOne({
+        where: {
+          userId: req.user.id,
+          videoId: video.id,
+        },
+      })
+    ]);
 
     isLiked = !!likedResult;
     isDisliked = !!dislikedResult;
@@ -221,34 +252,20 @@ exports.getVideo = asyncHandler(async (req, res, next) => {
     isVideoMine = req.user.id === video.userId;
   }
 
-  // Public data (available to everyone)
-  const commentsCount = await Comment.count({
-    where: {
-      videoId: req.params.id,
-    },
-  });
-
-  const likesCount = await VideoLike.count({
-    where: {
-      [Op.and]: [{ videoId: req.params.id }, { like: 1 }],
-    },
-  });
-
-  const dislikesCount = await VideoLike.count({
-    where: {
-      [Op.and]: [{ videoId: req.params.id }, { like: -1 }],
-    },
-  });
-
-  const views = await View.count({
-    where: {
-      videoId: req.params.id,
-    },
-  });
-
-  const subscribersCount = await Subscription.count({
-    where: { subscribeTo: video.userId },
-  });
+  // Public data (available to everyone) - optimized with Promise.all
+  const [
+    commentsCount,
+    likesCount,
+    dislikesCount,
+    views,
+    subscribersCount
+  ] = await Promise.all([
+    Comment.count({ where: { videoId: req.params.id } }),
+    VideoLike.count({ where: { [Op.and]: [{ videoId: req.params.id }, { like: 1 }] } }),
+    VideoLike.count({ where: { [Op.and]: [{ videoId: req.params.id }, { like: -1 }] } }),
+    View.count({ where: { videoId: req.params.id } }),
+    Subscription.count({ where: { subscribeTo: video.userId } })
+  ]);
 
   // Set data values
   video.setDataValue("comments", comments);
@@ -263,6 +280,9 @@ exports.getVideo = asyncHandler(async (req, res, next) => {
   video.setDataValue("isViewed", isViewed);
   video.setDataValue("subscribersCount", subscribersCount);
 
+  // Cache the result
+  setCachedVideoData(req.params.id, video);
+
   res.status(200).json({ success: true, data: video });
 });
 
@@ -276,21 +296,22 @@ exports.likeVideo = asyncHandler(async (req, res, next) => {
     });
   }
 
-  const liked = await VideoLike.findOne({
-    where: {
-      userId: req.user.id,
-      videoId: req.params.id,
-      like: 1,
-    },
-  });
-
-  const disliked = await VideoLike.findOne({
-    where: {
-      userId: req.user.id,
-      videoId: req.params.id,
-      like: -1,
-    },
-  });
+  const [liked, disliked] = await Promise.all([
+    VideoLike.findOne({
+      where: {
+        userId: req.user.id,
+        videoId: req.params.id,
+        like: 1,
+      },
+    }),
+    VideoLike.findOne({
+      where: {
+        userId: req.user.id,
+        videoId: req.params.id,
+        like: -1,
+      },
+    })
+  ]);
 
   if (liked) {
     await liked.destroy();
@@ -304,6 +325,9 @@ exports.likeVideo = asyncHandler(async (req, res, next) => {
       like: 1,
     });
   }
+  
+  // Clear cache when video data changes
+  videoCache.delete(req.params.id);
 
   res.json({ success: true, data: {} });
 });
@@ -318,21 +342,22 @@ exports.dislikeVideo = asyncHandler(async (req, res, next) => {
     });
   }
 
-  const liked = await VideoLike.findOne({
-    where: {
-      userId: req.user.id,
-      videoId: req.params.id,
-      like: 1,
-    },
-  });
-
-  const disliked = await VideoLike.findOne({
-    where: {
-      userId: req.user.id,
-      videoId: req.params.id,
-      like: -1,
-    },
-  });
+  const [liked, disliked] = await Promise.all([
+    VideoLike.findOne({
+      where: {
+        userId: req.user.id,
+        videoId: req.params.id,
+        like: 1,
+      },
+    }),
+    VideoLike.findOne({
+      where: {
+        userId: req.user.id,
+        videoId: req.params.id,
+        like: -1,
+      },
+    })
+  ]);
 
   if (disliked) {
     await disliked.destroy();
@@ -346,6 +371,9 @@ exports.dislikeVideo = asyncHandler(async (req, res, next) => {
       like: -1,
     });
   }
+  
+  // Clear cache when video data changes
+  videoCache.delete(req.params.id);
 
   res.json({ success: true, data: {} });
 });
@@ -373,6 +401,9 @@ exports.addComment = asyncHandler(async (req, res, next) => {
   };
 
   comment.setDataValue("User", User);
+  
+  // Clear cache when video data changes
+  videoCache.delete(req.params.id);
 
   res.status(200).json({ success: true, data: comment });
 });
@@ -407,6 +438,9 @@ exports.newView = asyncHandler(async (req, res, next) => {
     userId: req.user.id,
     videoId: req.params.id,
   });
+  
+  // Clear cache when video data changes
+  videoCache.delete(req.params.id);
 
   res.status(200).json({ success: true, data: {} });
 });
@@ -434,10 +468,11 @@ exports.searchVideo = asyncHandler(async (req, res, next) => {
   if (!videos.length)
     return res.status(200).json({ success: true, data: videos });
 
-  for (const video of videos) {
+  // Optimize view count fetching with Promise.all
+  await Promise.all(videos.map(async (video) => {
     const views = await View.count({ where: { videoId: video.id } });
     video.setDataValue("views", views);
-  }
+  }));
 
   res.status(200).json({ success: true, data: videos });
 });

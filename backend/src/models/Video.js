@@ -22,6 +22,7 @@ module.exports = (sequelize, DataTypes) => {
     thumbnail: {
       type: DataTypes.STRING,
       allowNull: true, // Make thumbnail optional to support file uploads without thumbnails
+      defaultValue: null // Explicitly set default to null
     },
     featured: {
       type: DataTypes.BOOLEAN,

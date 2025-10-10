@@ -2,6 +2,10 @@ const { Op } = require("sequelize");
 const { VideoLike, Video, User, Subscription, View } = require("../sequelize");
 const asyncHandler = require("../middlewares/asyncHandler");
 
+// Cache for frequently accessed data
+const userCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 exports.toggleSubscribe = asyncHandler(async (req, res, next) => {
   if (req.user.id === req.params.id) {
     return next({
@@ -39,6 +43,9 @@ exports.toggleSubscribe = asyncHandler(async (req, res, next) => {
       subscribeTo: req.params.id,
     });
   }
+  
+  // Clear cache when subscription data changes
+  userCache.clear();
 
   res.status(200).json({ success: true, data: {} });
 });
@@ -70,10 +77,11 @@ exports.getFeed = asyncHandler(async (req, res, next) => {
     return res.status(200).json({ success: true, data: feed });
   }
 
-  for (const video of feed) {
+  // Optimize view count fetching with Promise.all
+  await Promise.all(feed.map(async (video) => {
     const views = await View.count({ where: { videoId: video.id } });
     video.setDataValue("views", views);
-  }
+  }));
 
   res.status(200).json({ success: true, data: feed });
 });
@@ -95,6 +103,9 @@ exports.editUser = asyncHandler(async (req, res, next) => {
       "email",
     ],
   });
+  
+  // Clear cache when user data changes
+  userCache.clear();
 
   res.status(200).json({ success: true, data: user });
 });
@@ -116,33 +127,57 @@ exports.searchUser = asyncHandler(async (req, res, next) => {
   if (!users.length)
     return res.status(200).json({ success: true, data: users });
 
-  for (const user of users) {
-    const subscribersCount = await Subscription.count({
-      where: { subscribeTo: user.id },
-    });
-
-    const videosCount = await Video.count({
-      where: { userId: user.id },
-    });
-
-    const isSubscribed = await Subscription.findOne({
-      where: {
-        [Op.and]: [{ subscriber: req.user.id }, { subscribeTo: user.id }],
-      },
-    });
+  // Optimize data fetching with Promise.all
+  await Promise.all(users.map(async (user) => {
+    const [subscribersCount, videosCount, subscriptionResult] = await Promise.all([
+      Subscription.count({
+        where: { subscribeTo: user.id },
+      }),
+      Video.count({
+        where: { userId: user.id },
+      }),
+      Subscription.findOne({
+        where: {
+          [Op.and]: [{ subscriber: req.user.id }, { subscribeTo: user.id }],
+        },
+      })
+    ]);
 
     const isMe = req.user.id === user.id;
 
     user.setDataValue("subscribersCount", subscribersCount);
     user.setDataValue("videosCount", videosCount);
-    user.setDataValue("isSubscribed", !!isSubscribed);
+    user.setDataValue("isSubscribed", !!subscriptionResult);
     user.setDataValue("isMe", isMe);
-  }
+  }));
 
   res.status(200).json({ success: true, data: users });
 });
 
+// Helper function to get cached user data
+const getCachedUserData = (userId) => {
+  const cached = userCache.get(userId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  return null;
+};
+
+// Helper function to set cached user data
+const setCachedUserData = (userId, data) => {
+  userCache.set(userId, {
+    data,
+    timestamp: Date.now()
+  });
+};
+
 exports.getProfile = asyncHandler(async (req, res, next) => {
+  // Check cache first
+  const cachedData = getCachedUserData(req.params.id);
+  if (cachedData) {
+    return res.status(200).json({ success: true, data: cachedData });
+  }
+
   const user = await User.findByPk(req.params.id, {
     attributes: [
       "id",
@@ -164,25 +199,27 @@ exports.getProfile = asyncHandler(async (req, res, next) => {
   }
 
   // subscribersCount, isMe, isSubscribed
-  const subscribersCount = await Subscription.count({
-    where: { subscribeTo: req.params.id },
-  });
+  const [subscribersCount, isSubscribed, subscriptions] = await Promise.all([
+    Subscription.count({
+      where: { subscribeTo: req.params.id },
+    }),
+    Subscription.findOne({
+      where: {
+        [Op.and]: [{ subscriber: req.user.id }, { subscribeTo: req.params.id }],
+      },
+    }),
+    Subscription.findAll({
+      where: { subscriber: req.params.id },
+    })
+  ]);
+
   user.setDataValue("subscribersCount", subscribersCount);
 
   const isMe = req.user.id === req.params.id;
   user.setDataValue("isMe", isMe);
-
-  const isSubscribed = await Subscription.findOne({
-    where: {
-      [Op.and]: [{ subscriber: req.user.id }, { subscribeTo: req.params.id }],
-    },
-  });
   user.setDataValue("isSubscribed", !!isSubscribed);
 
   // find the channels this user is subscribed to
-  const subscriptions = await Subscription.findAll({
-    where: { subscriber: req.params.id },
-  });
   const channelIds = subscriptions.map((sub) => sub.subscribeTo);
 
   const channels = await User.findAll({
@@ -192,12 +229,13 @@ exports.getProfile = asyncHandler(async (req, res, next) => {
     },
   });
 
-  for (const channel of channels) {
+  // Optimize subscribers count fetching with Promise.all
+  await Promise.all(channels.map(async (channel) => {
     const subscribersCount = await Subscription.count({
       where: { subscribeTo: channel.id },
     });
     channel.setDataValue("subscribersCount", subscribersCount);
-  }
+  }));
 
   user.setDataValue("channels", channels);
 
@@ -206,15 +244,19 @@ exports.getProfile = asyncHandler(async (req, res, next) => {
     attributes: ["id", "thumbnail", "title", "createdAt", "category"],
   });
 
-  if (!videos.length)
-    return res.status(200).json({ success: true, data: user });
-
-  for (const video of videos) {
-    const views = await View.count({ where: { videoId: video.id } });
-    video.setDataValue("views", views);
+  if (videos.length > 0) {
+    // Optimize view count fetching with Promise.all
+    await Promise.all(videos.map(async (video) => {
+      const views = await View.count({ where: { videoId: video.id } });
+      video.setDataValue("views", views);
+    }));
   }
 
   user.setDataValue("videos", videos);
+  
+  // Cache the result
+  setCachedUserData(req.params.id, user);
+
   res.status(200).json({ success: true, data: user });
 });
 
@@ -232,25 +274,26 @@ exports.recommendedVideos = asyncHandler(async (req, res, next) => {
     ],
     include: [{ model: User, attributes: ["id", "avatar", "username"] }],
     order: [
-      ["featured", "DESC"], // Top-rated videos first
-      ["createdAt", "DESC"], // Then by newest
+      ["featured", "DESC"],
+      ["createdAt", "DESC"],
     ],
   });
 
   if (!videos.length)
     return res.status(200).json({ success: true, data: videos });
 
-  for (const video of videos) {
+  // Optimize view count fetching with Promise.all
+  await Promise.all(videos.map(async (video) => {
     const views = await View.count({ where: { videoId: video.id } });
     video.setDataValue("views", views);
-  }
+  }));
 
   res.status(200).json({ success: true, data: videos });
 });
 
 exports.recommendChannels = asyncHandler(async (req, res, next) => {
   const channels = await User.findAll({
-		limit: 10,
+    limit: 10,
     attributes: ["id", "username", "avatar", "channelDescription"],
     where: {
       id: {
@@ -262,24 +305,25 @@ exports.recommendChannels = asyncHandler(async (req, res, next) => {
   if (!channels.length)
     return res.status(200).json({ success: true, data: channels });
 
-  for (const channel of channels) {
-    const subscribersCount = await Subscription.count({
-      where: { subscribeTo: channel.id },
-    });
+  // Optimize data fetching with Promise.all
+  await Promise.all(channels.map(async (channel) => {
+    const [subscribersCount, subscriptionResult, videosCount] = await Promise.all([
+      Subscription.count({
+        where: { subscribeTo: channel.id },
+      }),
+      Subscription.findOne({
+        where: {
+          subscriber: req.user.id,
+          subscribeTo: channel.id,
+        },
+      }),
+      Video.count({ where: { userId: channel.id } })
+    ]);
+
     channel.setDataValue("subscribersCount", subscribersCount);
-
-    const isSubscribed = await Subscription.findOne({
-      where: {
-        subscriber: req.user.id,
-        subscribeTo: channel.id,
-      },
-    });
-
-    channel.setDataValue("isSubscribed", !!isSubscribed);
-
-    const videosCount = await Video.count({ where: { userId: channel.id } });
+    channel.setDataValue("isSubscribed", !!subscriptionResult);
     channel.setDataValue("videosCount", videosCount);
-  }
+  }));
 
   res.status(200).json({ success: true, data: channels });
 });
@@ -317,10 +361,11 @@ const getVideos = async (model, req, res, next) => {
     return res.status(200).json({ success: true, data: videos });
   }
 
-  for (const video of videos) {
+  // Optimize view count fetching with Promise.all
+  await Promise.all(videos.map(async (video) => {
     const views = await View.count({ where: { videoId: video.id } });
     video.setDataValue("views", views);
-  }
+  }));
 
   res.status(200).json({ success: true, data: videos });
 };

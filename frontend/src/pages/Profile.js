@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
 import { useStarred } from "../contexts/StarredContext";
@@ -24,6 +24,40 @@ const Profile = () => {
     }
   }, [location]);
 
+  const fetchWatchedVideos = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get("/api/v1/users/history");
+      setWatchedVideos(response.data.data || []);
+    } catch (error) {
+      // Silently handle error to avoid console pollution
+      setWatchedVideos([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchLikedVideos = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get("/api/v1/users/likedVideos");
+      setLikedVideos(response.data.data || []);
+    } catch (error) {
+      // Silently handle error to avoid console pollution
+      setLikedVideos([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchUserData = useCallback(async () => {
+    if (activeTab === "watched") {
+      await fetchWatchedVideos();
+    } else if (activeTab === "liked") {
+      await fetchLikedVideos();
+    }
+  }, [activeTab, fetchWatchedVideos, fetchLikedVideos]);
+
   useEffect(() => {
     if (isAuthenticated) {
       // Load both watched and liked videos on initial load for statistics
@@ -32,41 +66,35 @@ const Profile = () => {
       // Also fetch when tab changes
       fetchUserData();
     }
-  }, [isAuthenticated, activeTab]);
+  }, [isAuthenticated, activeTab, fetchWatchedVideos, fetchLikedVideos, fetchUserData]);
 
-  const fetchUserData = async () => {
-    if (activeTab === "watched") {
-      await fetchWatchedVideos();
-    } else if (activeTab === "liked") {
-      await fetchLikedVideos();
+  const noContentMessage = useMemo(() => {
+    switch (activeTab) {
+      case "watched":
+        return (
+          <div className="no-content">
+            <p>You haven't watched any movies yet.</p>
+            <p>Start exploring our movie collection!</p>
+          </div>
+        );
+      case "liked":
+        return (
+          <div className="no-content">
+            <p>You haven't liked any movies yet.</p>
+            <p>Like movies you enjoy to see them here!</p>
+          </div>
+        );
+      case "starred":
+        return (
+          <div className="no-content">
+            <p>No movies in your watch later list.</p>
+            <p>Click the star ⭐ on any video to add it here!</p>
+          </div>
+        );
+      default:
+        return null;
     }
-  };
-
-  const fetchWatchedVideos = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get("/api/v1/users/history");
-      setWatchedVideos(response.data.data || []);
-    } catch (error) {
-      console.error("Error fetching watched videos:", error);
-      setWatchedVideos([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchLikedVideos = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get("/api/v1/users/likedVideos");
-      setLikedVideos(response.data.data || []);
-    } catch (error) {
-      console.error("Error fetching liked videos:", error);
-      setLikedVideos([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [activeTab]);
 
   if (!isAuthenticated) {
     return (
@@ -192,10 +220,7 @@ const Profile = () => {
                   ))}
                 </div>
               ) : (
-                <div className="no-content">
-                  <p>You haven't watched any movies yet.</p>
-                  <p>Start exploring our movie collection!</p>
-                </div>
+                noContentMessage
               )}
             </div>
           )}
@@ -212,10 +237,7 @@ const Profile = () => {
                   ))}
                 </div>
               ) : (
-                <div className="no-content">
-                  <p>You haven't liked any movies yet.</p>
-                  <p>Like movies you enjoy to see them here!</p>
-                </div>
+                noContentMessage
               )}
             </div>
           )}
@@ -230,10 +252,7 @@ const Profile = () => {
                   ))}
                 </div>
               ) : (
-                <div className="no-content">
-                  <p>No movies in your watch later list.</p>
-                  <p>Click the star ⭐ on any video to add it here!</p>
-                </div>
+                noContentMessage
               )}
             </div>
           )}
@@ -243,4 +262,4 @@ const Profile = () => {
   );
 };
 
-export default Profile;
+export default React.memo(Profile);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,11 +16,7 @@ const VideoWatch = () => {
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  useEffect(() => {
-    fetchVideo();
-  }, [id]);
-
-  const fetchVideo = async () => {
+  const fetchVideo = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(`/api/v1/videos/${id}`);
@@ -32,18 +28,20 @@ const VideoWatch = () => {
           await axios.get(`/api/v1/videos/${id}/view`);
         } catch (viewError) {
           // Silently handle view recording errors
-          console.log('View recording failed:', viewError.message);
         }
       }
     } catch (error) {
-      console.error('Error fetching video:', error);
       setError('Failed to load video');
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, isAuthenticated]);
 
-  const handleLike = async () => {
+  useEffect(() => {
+    fetchVideo();
+  }, [fetchVideo]);
+
+  const handleLike = useCallback(async () => {
     if (!isAuthenticated) {
       alert('Please login to like videos');
       return;
@@ -65,11 +63,11 @@ const VideoWatch = () => {
         };
       });
     } catch (error) {
-      console.error('Error liking video:', error);
+      // Silently handle error
     }
-  };
+  }, [id, isAuthenticated]);
 
-  const handleDislike = async () => {
+  const handleDislike = useCallback(async () => {
     if (!isAuthenticated) {
       alert('Please login to dislike videos');
       return;
@@ -91,11 +89,11 @@ const VideoWatch = () => {
         };
       });
     } catch (error) {
-      console.error('Error disliking video:', error);
+      // Silently handle error
     }
-  };
+  }, [id, isAuthenticated]);
 
-  const handleCommentSubmit = async (e) => {
+  const handleCommentSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!isAuthenticated) {
       alert('Please login to comment');
@@ -117,46 +115,43 @@ const VideoWatch = () => {
       
       setNewComment('');
     } catch (error) {
-      console.error('Error adding comment:', error);
+      // Silently handle error
     } finally {
       setSubmittingComment(false);
     }
-  };
+  }, [id, isAuthenticated, newComment]);
 
-  const handleStarClick = () => {
+  const handleStarClick = useCallback(() => {
     if (video) {
       toggleStarred(video);
     }
-  };
+  }, [video, toggleStarred]);
 
-  const formatDate = (dateString) => {
+  const formatDate = useCallback((dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
-  };
+  }, []);
 
-  const formatViews = (views) => {
+  const formatViews = useCallback((views) => {
     if (views >= 1000000) {
       return `${(views / 1000000).toFixed(1)}M`;
     } else if (views >= 1000) {
       return `${(views / 1000).toFixed(1)}K`;
     }
     return views?.toString() || '0';
-  };
+  }, []);
 
-  if (loading) {
-    return <div className="loading">Loading video...</div>;
-  }
+  const errorMessage = useMemo(() => {
+    if (loading) return <div className="loading">Loading video...</div>;
+    if (error) return <div className="error">{error}</div>;
+    if (!video) return <div className="error">Video not found</div>;
+    return null;
+  }, [loading, error, video]);
 
-  if (error) {
-    return <div className="error">{error}</div>;
-  }
-
-  if (!video) {
-    return <div className="error">Video not found</div>;
-  }
+  if (errorMessage) return errorMessage;
 
   return (
     <div className="video-watch">
@@ -250,4 +245,4 @@ const VideoWatch = () => {
   );
 };
 
-export default VideoWatch;
+export default React.memo(VideoWatch);

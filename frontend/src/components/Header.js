@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import ThemeToggle from "./ThemeToggle";
 import "./Header.css";
 import profilesvg from "../img/profile.svg";
 import homeIcon from "../img/home-button.png";
+
 const Header = () => {
   const { user, logout, isAuthenticated, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
@@ -12,28 +13,28 @@ const Header = () => {
   const navigate = useNavigate();
   const menuRef = useRef(null);
 
-  const handleSearch = (e) => {
+  const handleSearch = useCallback((e) => {
     e.preventDefault();
     if (searchTerm.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}`);
     }
-  };
+  }, [navigate, searchTerm]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     navigate("/");
     setIsMenuOpen(false);
-  };
+  }, [logout, navigate]);
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  const toggleMenu = useCallback(() => {
+    setIsMenuOpen(prev => !prev);
+  }, []);
 
-  const closeMenu = () => {
+  const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
-  };
+  }, []);
 
-  // Close menu when clicking outside
+  // Close menu when clicking outside - optimized with useCallback
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -187,4 +188,4 @@ const Header = () => {
   );
 };
 
-export default Header;
+export default React.memo(Header);

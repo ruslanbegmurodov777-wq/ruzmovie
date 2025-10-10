@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   getVideoType,
@@ -8,11 +8,11 @@ import {
 import { useStarred } from "../contexts/StarredContext";
 import "./VideoCard.css";
 
-const VideoCard = ({ video }) => {
+const VideoCard = React.memo(({ video }) => {
   const [isHovered, setIsHovered] = useState(false);
   const { isStarred, toggleStarred } = useStarred();
 
-  const getThumbnail = () => {
+  const getThumbnail = useCallback(() => {
     if (video.thumbnail) {
       return video.thumbnail;
     }
@@ -27,26 +27,27 @@ const VideoCard = ({ video }) => {
     }
 
     return "/placeholder-thumbnail.jpg";
-  };
+  }, [video.thumbnail, video.url]);
 
-  const getVideoPreview = () => {
+  const getVideoPreview = useCallback(() => {
     const videoType = getVideoType(video.url);
     if (videoType === "youtube") {
       const videoId = getYouTubeVideoId(video.url);
       return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}`;
     }
     return null;
-  };
-  const formatViews = (views) => {
+  }, [video.url]);
+
+  const formatViews = useCallback((views) => {
     if (views >= 1000000) {
       return `${(views / 1000000).toFixed(1)}M`;
     } else if (views >= 1000) {
       return `${(views / 1000).toFixed(1)}K`;
     }
     return views?.toString() || "0";
-  };
+  }, []);
 
-  const formatDate = (dateString) => {
+  const formatDate = useCallback((dateString) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now - date);
@@ -57,13 +58,18 @@ const VideoCard = ({ video }) => {
     if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
     if (diffDays < 365) return `${Math.ceil(diffDays / 30)} months ago`;
     return `${Math.ceil(diffDays / 365)} years ago`;
-  };
+  }, []);
 
-  const handleStarClick = (e) => {
+  const handleStarClick = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
     toggleStarred(video);
-  };
+  }, [toggleStarred, video]);
+
+  const thumbnailUrl = useMemo(() => getThumbnail(), [getThumbnail]);
+  const videoPreviewUrl = useMemo(() => getVideoPreview(), [getVideoPreview]);
+  const viewsFormatted = useMemo(() => formatViews(video.views), [formatViews, video.views]);
+  const dateFormatted = useMemo(() => video.createdAt ? formatDate(video.createdAt) : null, [formatDate, video.createdAt]);
 
   return (
     <div
@@ -86,9 +92,9 @@ const VideoCard = ({ video }) => {
             ⭐
           </button>
 
-          {isHovered && getVideoPreview() ? (
+          {isHovered && videoPreviewUrl ? (
             <iframe
-              src={getVideoPreview()}
+              src={videoPreviewUrl}
               className="video-preview"
               frameBorder="0"
               allow="autoplay; encrypted-media"
@@ -97,7 +103,7 @@ const VideoCard = ({ video }) => {
             />
           ) : (
             <img
-              src={getThumbnail()}
+              src={thumbnailUrl}
               alt={video.title}
               className="thumbnail-image"
               onError={(e) => {
@@ -123,11 +129,11 @@ const VideoCard = ({ video }) => {
               {video.User?.username || "Unknown User"}
             </span>
             <div className="video-stats">
-              <span>{formatViews(video.views)} views</span>
-              {video.createdAt && (
+              <span>{viewsFormatted} views</span>
+              {dateFormatted && (
                 <>
                   <span className="dot">•</span>
-                  <span>{formatDate(video.createdAt)}</span>
+                  <span>{dateFormatted}</span>
                 </>
               )}
             </div>
@@ -136,6 +142,6 @@ const VideoCard = ({ video }) => {
       </Link>
     </div>
   );
-};
+});
 
 export default VideoCard;

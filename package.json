@@ -1,0 +1,26 @@
+{
+  "name": "ruzmovie",
+  "version": "1.0.0",
+  "description": "Full-stack movie streaming platform",
+  "main": "backend/src/server.js",
+  "scripts": {
+    "build": "node build.js",
+    "start": "cd backend && npm start",
+    "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm start\"",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "npm run build"
+  },
+  "keywords": [
+    "movie",
+    "streaming",
+    "video",
+    "react",
+    "nodejs",
+    "express"
+  ],
+  "author": "Ruzmovie Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  }
+}

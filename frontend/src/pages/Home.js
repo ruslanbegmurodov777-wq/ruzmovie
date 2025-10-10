@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import VideoCard from '../components/VideoCard';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,34 +12,43 @@ const Home = () => {
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState('all');
 
-  const categories = [
+  const categories = useMemo(() => [
     { id: 'all', label: 'All' },
     { id: 'movies', label: 'Movies' },
     { id: 'music', label: 'Music' },
     { id: 'dramas', label: 'Dramas' },
     { id: 'cartoons', label: 'Cartoons' }
-  ];
+  ], []);
 
-  useEffect(() => {
-    fetchRecommendedVideos();
+  const fetchRecommendedVideos = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/v1/videos');
+      const videosData = response.data.data || [];
+      setVideos(videosData);
+      setFilteredVideos(videosData);
+    } catch (error) {
+      // Silently handle error to avoid console pollution
+      setError('Failed to load videos');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    filterVideosByCategory();
-  }, [videos, activeCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchRecommendedVideos();
+  }, [fetchRecommendedVideos]);
 
-  const filterVideosByCategory = () => {
+  const filterVideosByCategory = useCallback(() => {
     let filtered;
     if (activeCategory === 'all') {
       filtered = videos;
     } else {
-      filtered = videos.filter(video => {
-        return video.category === activeCategory;
-      });
+      filtered = videos.filter(video => video.category === activeCategory);
     }
     
     // Ensure top-rated videos stay at the top even after filtering
-    const sortedFiltered = filtered.sort((a, b) => {
+    const sortedFiltered = [...filtered].sort((a, b) => {
       // First sort by featured (top-rated) status
       if (a.featured && !b.featured) return -1;
       if (!a.featured && b.featured) return 1;
@@ -49,22 +58,18 @@ const Home = () => {
     });
     
     setFilteredVideos(sortedFiltered);
-  };
+  }, [videos, activeCategory]);
 
-  const fetchRecommendedVideos = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get('/api/v1/videos');
-      const videosData = response.data.data || [];
-      setVideos(videosData);
-      setFilteredVideos(videosData);
-    } catch (error) {
-      console.error('Error fetching videos:', error);
-      setError('Failed to load videos');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    filterVideosByCategory();
+  }, [filterVideosByCategory]);
+
+  const noVideosMessage = useMemo(() => {
+    if (activeCategory === 'all') {
+      return <p>No videos available. Be the first to upload!</p>;
     }
-  };
+    return <p>No {categories.find(c => c.id === activeCategory)?.label.toLowerCase()} found.</p>;
+  }, [activeCategory, categories]);
 
   if (loading) {
     return <div className="loading">Loading videos...</div>;
@@ -106,11 +111,7 @@ const Home = () => {
         
         {filteredVideos.length === 0 && !loading ? (
           <div className="no-videos">
-            {activeCategory === 'all' ? (
-              <p>No videos available. Be the first to upload!</p>
-            ) : (
-              <p>No {categories.find(c => c.id === activeCategory)?.label.toLowerCase()} found.</p>
-            )}
+            {noVideosMessage}
           </div>
         ) : (
           <div className="videos-grid">
@@ -124,4 +125,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default React.memo(Home);

@@ -1,11 +1,12 @@
- {
-  "name": "youtubeclone-backend",
+{
+  "name": "ruzmovie-backend",
   "version": "1.0.0",
   "description": "Youtube clone backend using Express + Sequelize",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server",
-    "dev": "nodemon src/server"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "build": "npm install --prefix ../frontend && npm run build --prefix ../frontend"
   },
   "author": "Manikandan Raji",
   "license": "MIT",

@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-// import React, { useState, useEffect } from 'react';/
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -29,22 +28,7 @@ const AdminPanel = () => {
     category: "movies",
   });
 
-  useEffect(() => {
-    if (isAuthenticated && isAdmin) {
-      fetchStats();
-      if (activeTab === "videos") {
-        fetchVideos();
-      } else if (activeTab === "users") {
-        fetchUsers();
-      }
-    } else if (isAuthenticated && !isAdmin) {
-      setError("Admin access required. Please login with admin credentials.");
-    } else if (!isAuthenticated) {
-      setError("Please login to access admin panel.");
-    }
-  }, [activeTab, isAuthenticated, isAdmin]);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const [videosRes, usersRes] = await Promise.all([
         axios.get("/api/v1/admin/videos"),
@@ -64,54 +48,58 @@ const AdminPanel = () => {
         totalViews: totalViews,
       });
     } catch (error) {
-      console.error("Error fetching stats:", error);
-      // Don't show error for stats, just keep default values
+      // Silently handle error for stats, just keep default values
     }
-  };
+  }, []);
 
-  const fetchVideos = async () => {
+  const fetchVideos = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-      console.log("Fetching videos from /api/v1/admin/videos");
       const response = await axios.get("/api/v1/admin/videos");
-      console.log("Videos response:", response.data);
       setVideos(response.data.data || []);
-      console.log("Set videos:", response.data.data || []);
     } catch (error) {
       const errorMsg =
         error.response?.data?.message ||
         `Failed to fetch videos: ${error.message}`;
       setError(errorMsg);
-      console.error("Error fetching videos:", error);
-      console.error("Error response:", error.response);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-      console.log("Fetching users from /api/v1/admin/users");
       const response = await axios.get("/api/v1/admin/users");
-      console.log("Users response:", response.data);
       setUsers(response.data.data || []);
-      console.log("Set users:", response.data.data || []);
     } catch (error) {
       const errorMsg =
         error.response?.data?.message ||
         `Failed to fetch users: ${error.message}`;
       setError(errorMsg);
-      console.error("Error fetching users:", error);
-      console.error("Error response:", error.response);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const deleteVideo = async (videoId) => {
+  useEffect(() => {
+    if (isAuthenticated && isAdmin) {
+      fetchStats();
+      if (activeTab === "videos") {
+        fetchVideos();
+      } else if (activeTab === "users") {
+        fetchUsers();
+      }
+    } else if (isAuthenticated && !isAdmin) {
+      setError("Admin access required. Please login with admin credentials.");
+    } else if (!isAuthenticated) {
+      setError("Please login to access admin panel.");
+    }
+  }, [activeTab, isAuthenticated, isAdmin, fetchStats, fetchVideos, fetchUsers]);
+
+  const deleteVideo = useCallback(async (videoId) => {
     if (window.confirm("Are you sure you want to delete this video?")) {
       try {
         await axios.delete(`/api/v1/admin/videos/${videoId}`);
@@ -123,12 +111,11 @@ const AdminPanel = () => {
         const errorMsg =
           error.response?.data?.message || "Failed to delete video";
         setError(errorMsg);
-        console.error("Error deleting video:", error);
       }
     }
-  };
+  }, [fetchVideos, fetchStats]);
 
-  const deleteUser = async (username) => {
+  const deleteUser = useCallback(async (username) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
       try {
         await axios.delete(`/api/v1/admin/users/${username}`);
@@ -140,12 +127,11 @@ const AdminPanel = () => {
         const errorMsg =
           error.response?.data?.message || "Failed to delete user";
         setError(errorMsg);
-        console.error("Error deleting user:", error);
       }
     }
-  };
+  }, [fetchUsers, fetchStats]);
 
-  const startEditVideo = (video) => {
+  const startEditVideo = useCallback((video) => {
     setEditingVideo(video.id);
     setEditForm({
       title: video.title,
@@ -155,9 +141,9 @@ const AdminPanel = () => {
       featured: video.featured !== undefined ? video.featured : true,
       category: video.category || "movies",
     });
-  };
+  }, []);
 
-  const cancelEdit = () => {
+  const cancelEdit = useCallback(() => {
     setEditingVideo(null);
     setEditForm({
       title: "",
@@ -167,9 +153,9 @@ const AdminPanel = () => {
       featured: true,
       category: "movies",
     });
-  };
+  }, []);
 
-  const updateVideo = async (videoId) => {
+  const updateVideo = useCallback(async (videoId) => {
     try {
       await axios.put(`/api/v1/admin/videos/${videoId}`, editForm);
       setSuccess("Video updated successfully");
@@ -181,9 +167,16 @@ const AdminPanel = () => {
       const errorMsg =
         error.response?.data?.message || "Failed to update video";
       setError(errorMsg);
-      console.error("Error updating video:", error);
     }
-  };
+  }, [editForm, fetchVideos, fetchStats]);
+
+  const noVideosMessage = useMemo(() => (
+    <p>No videos found</p>
+  ), []);
+
+  const noUsersMessage = useMemo(() => (
+    <p>No users found</p>
+  ), []);
 
   if (!isAuthenticated) {
     return (
@@ -265,7 +258,7 @@ const AdminPanel = () => {
             <div className="videos-section">
               <h2>Videos Management</h2>
               {videos.length === 0 ? (
-                <p>No videos found</p>
+                noVideosMessage
               ) : (
                 <div className="videos-table">
                   <table>
@@ -447,7 +440,7 @@ const AdminPanel = () => {
             <div className="users-section">
               <h2>Users Management</h2>
               {users.length === 0 ? (
-                <p>No users found</p>
+                noUsersMessage
               ) : (
                 <div className="users-table">
                   <table>
@@ -523,4 +516,4 @@ const AdminPanel = () => {
   );
 };
 
-export default AdminPanel;
+export default React.memo(AdminPanel);

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext();
@@ -26,19 +26,19 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const response = await axios.get('/api/v1/auth/me');
       setUser(response.data.data);
     } catch (error) {
-      console.error('Error fetching user:', error);
+      // Silently handle error to avoid console pollution
       logout();
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     try {
       const response = await axios.post('/api/v1/auth/login', { email, password });
       const newToken = response.data.data;
@@ -55,9 +55,9 @@ export const AuthProvider = ({ children }) => {
         error: error.response?.data?.message || 'Login failed' 
       };
     }
-  };
+  }, [fetchUser]);
 
-  const register = async (userData) => {
+  const register = useCallback(async (userData) => {
     try {
       const response = await axios.post('/api/v1/auth/signup', userData);
       const newToken = response.data.data;
@@ -74,14 +74,14 @@ export const AuthProvider = ({ children }) => {
         error: error.response?.data?.message || 'Registration failed' 
       };
     }
-  };
+  }, [fetchUser]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
     delete axios.defaults.headers.common['Authorization'];
-  };
+  }, []);
 
   const value = {
     user,
