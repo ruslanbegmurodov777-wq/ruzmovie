@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,27 +30,7 @@ const Upload = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  if (!isAuthenticated) {
-    return (
-      <div className="upload-page">
-        <div className="upload-container">
-          <div className="error">Please login to access this page</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="upload-page">
-        <div className="upload-container">
-          <div className="error">Admin access required</div>
-        </div>
-      </div>
-    );
-  }
-
-  const handleFileChange = (e) => {
+  const handleFileChange = useCallback((e) => {
     const files = e.target.files;
     if (files && files[0]) {
       setVideoFile(files[0]);
@@ -64,9 +44,9 @@ const Upload = () => {
         setUploadMethod('');
       }
     }
-  };
+  }, [formData.url]);
 
-  const handleThumbnailFileChange = (e) => {
+  const handleThumbnailFileChange = useCallback((e) => {
     const files = e.target.files;
     if (files && files[0]) {
       setThumbnailFile(files[0]);
@@ -75,9 +55,9 @@ const Upload = () => {
     } else {
       setThumbnailFile(null);
     }
-  };
+  }, []);
 
-  const handleUrlChange = (e) => {
+  const handleUrlChange = useCallback((e) => {
     const { value } = e.target;
     setFormData({
       ...formData,
@@ -113,22 +93,22 @@ const Upload = () => {
               setFormData(prev => ({ ...prev, url: value, thumbnail }));
             })
             .catch(error => {
-              console.error('Failed to get Vimeo thumbnail:', error);
+              // Silently handle error
             });
         }
       }
     }
-  };
+  }, [formData, videoFile]);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: value
     });
-  };
+  }, [formData]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -203,7 +183,6 @@ const Upload = () => {
         navigate(`/video/${response.data.data.id}`);
       }, 2000);
     } catch (error) {
-      console.error('Error uploading video:', error);
       // More detailed error handling
       if (error.response) {
         // Server responded with error status
@@ -222,12 +201,49 @@ const Upload = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData, videoFile, thumbnailFile, navigate]);
 
-  // Only render for admins
-  if (!isAuthenticated || !isAdmin) {
+  const uploadTips = useMemo(() => (
+    <div className="upload-tips">
+      <h3>Upload Tips:</h3>
+      <ul>
+        <li>Use a descriptive title for better discoverability</li>
+        <li>You can either upload a video file directly or provide a URL</li>
+        <li><strong>YouTube:</strong> Copy the video URL from the address bar</li>
+        <li><strong>Vimeo:</strong> Copy the video URL from the address bar</li>
+        <li><strong>Direct videos:</strong> Make sure the URL is publicly accessible</li>
+        <li>Thumbnails are auto-generated for YouTube/Vimeo</li>
+        <li>Add a detailed description to help viewers</li>
+        <li>For uploaded files, thumbnails can be customized</li>
+      </ul>
+    </div>
+  ), []);
+
+  const accessMessage = useMemo(() => {
+    if (!isAuthenticated) {
+      return (
+        <div className="upload-page">
+          <div className="upload-container">
+            <div className="error">Please login to access this page</div>
+          </div>
+        </div>
+      );
+    }
+
+    if (!isAdmin) {
+      return (
+        <div className="upload-page">
+          <div className="upload-container">
+            <div className="error">Admin access required</div>
+          </div>
+        </div>
+      );
+    }
+
     return null;
-  }
+  }, [isAuthenticated, isAdmin]);
+
+  if (accessMessage) return accessMessage;
 
   return (
     <div className="upload-page">
@@ -456,23 +472,11 @@ const Upload = () => {
             </button>
           </form>
 
-          <div className="upload-tips">
-            <h3>Upload Tips:</h3>
-            <ul>
-              <li>Use a descriptive title for better discoverability</li>
-              <li>You can either upload a video file directly or provide a URL</li>
-              <li><strong>YouTube:</strong> Copy the video URL from the address bar</li>
-              <li><strong>Vimeo:</strong> Copy the video URL from the address bar</li>
-              <li><strong>Direct videos:</strong> Make sure the URL is publicly accessible</li>
-              <li>Thumbnails are auto-generated for YouTube and Vimeo</li>
-              <li>Add a detailed description to help viewers</li>
-              <li>For uploaded files, thumbnails can be customized</li>
-            </ul>
-          </div>
+          {uploadTips}
         </div>
       </div>
     </div>
   );
 };
 
-export default Upload;
+export default React.memo(Upload);
