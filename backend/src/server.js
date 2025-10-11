@@ -50,10 +50,13 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // ✅ Serverni ishga tushurish
-if (require.main === module) {
+const isMainModule = process.argv[1] && process.argv[1].includes("server.js");
+
+if (isMainModule) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
 }
+
 import mysql from "mysql2";
 import dotenv from "dotenv";
 dotenv.config();
