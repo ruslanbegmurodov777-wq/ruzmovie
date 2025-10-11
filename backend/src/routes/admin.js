@@ -1,5 +1,5 @@
 const express = require("express");
-const multer = require('multer');
+const multer = require("multer");
 const router = express.Router();
 const {
   getUsers,
@@ -20,19 +20,21 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     // Accept video files only
-    if (file.mimetype.startsWith('video/')) {
+    if (file.mimetype.startsWith("video/")) {
       cb(null, true);
     } else {
-      cb(new Error('Only video files are allowed!'), false);
+      cb(new Error("Only video files are allowed!"), false);
     }
-  }
+  },
 });
 
 router.route("/users").get(protect, admin, getUsers);
 router.route("/videos").get(protect, admin, getVideos);
-router.route("/videos").post(protect, admin, upload.single('videoFile'), addVideo);
+router
+  .route("/videos")
+  .post(protect, admin, upload.single("videoFile"), addVideo);
 router.route("/users/:username").delete(protect, admin, removeUser);
 router.route("/videos/:id").delete(protect, admin, removeVideo);
 router.route("/videos/:id").put(protect, admin, updateVideo);
 
-module.exports = router;
+export default router;
