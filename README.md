@@ -63,32 +63,39 @@ This will start the Netlify development server which will:
 
 ## Environment Variables
 
-### Local Development (.env)
-Create a `.env` file in the root directory:
+### Local Development (.env.local)
+Create a `.env.local` file in the root directory:
 
 ```
 DB_HOST=127.0.0.1
-DB_USER=your_database_user
-DB_PASSWORD=your_database_password
-DB_NAME=your_database_name
-DB_DIALECT=mysql
 DB_PORT=3306
-JWT_SECRET=your_jwt_secret
+DB_USER=root
+DB_PASS=ruslanbek777
+DB_NAME=movie
+DB_DIALECT=mysql
+JWT_SECRET=mySuperSecretKey2025!
 FRONTEND_URL=http://localhost:3000
 PORT=5000
 ```
 
-### Netlify Deployment
-Set the following environment variables in the Netlify dashboard:
+### Production/Railway (.env)
+The `.env` file in the root directory is configured for Railway deployment:
 
-- `DB_HOST` - Your database host
-- `DB_USER` - Your database user
-- `DB_PASSWORD` - Your database password
-- `DB_NAME` - Your database name
-- `DB_DIALECT` - Your database dialect (mysql, postgres, etc.)
-- `DB_PORT` - Your database port
-- `JWT_SECRET` - Your JWT secret key
-- `FRONTEND_URL` - Your Netlify site URL (e.g., https://your-site-name.netlify.app)
+```
+DB_HOST=containers-us-west-123.railway.app
+DB_PORT=3306
+DB_USER=root
+DB_PASS=uiAYlmNHzlcIdtbkcRnobyGXhpYaZxWI
+DB_NAME=railway
+DB_DIALECT=mysql
+JWT_SECRET=your-super-secret-jwt-key
+FRONTEND_URL=https://your-site-name.netlify.app
+PORT=5000
+```
+
+## Database Setup
+
+For detailed database setup instructions, see [DATABASE_SETUP.md](DATABASE_SETUP.md).
 
 ## Deployment to Netlify
 

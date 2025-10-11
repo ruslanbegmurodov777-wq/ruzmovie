@@ -1,7 +1,17 @@
 const { Sequelize, DataTypes } = require("sequelize");
 const bcrypt = require("bcryptjs");
 
-// Use environment variables with fallbacks for Railway deployment
+// Load environment variables based on NODE_ENV
+if (process.env.NODE_ENV === 'production') {
+  require('dotenv').config();
+} else {
+  require('dotenv').config({ path: '.env.local' });
+}
+
+// Check if we're using Railway deployment or local development
+const isRailwayDeployment = process.env.DB_HOST && process.env.DB_HOST.includes('railway.app');
+
+// Use environment variables with fallbacks
 const sequelize = new Sequelize(
   process.env.DB_NAME || "movie",
   process.env.DB_USER || "root",
@@ -11,19 +21,59 @@ const sequelize = new Sequelize(
     port: process.env.DB_PORT || 3306,
     dialect: process.env.DB_DIALECT || "mysql",
     logging: false,
+    // Add connection timeout settings
+    dialectOptions: {
+      connectTimeout: 60000 // 60 seconds
+    },
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 60000,
+      idle: 10000
+    }
   }
 );
 
 // Connection check
 (async () => {
   try {
+    console.log(`Attempting to connect to database...`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Host: ${process.env.DB_HOST || "127.0.0.1"}`);
+    console.log(`Database: ${process.env.DB_NAME || "movie"}`);
+    console.log(`User: ${process.env.DB_USER || "root"}`);
+    console.log(`Port: ${process.env.DB_PORT || 3306}`);
+    
     await sequelize.authenticate();
     console.log("✅ Database connection has been established successfully.");
     // Use force: false to avoid schema conflicts
     await sequelize.sync({ force: false });
     console.log("✅ All models were synchronized successfully.");
   } catch (error) {
-    console.error("❌ Unable to connect to the database:", error);
+    console.error("❌ Unable to connect to the database:", error.message);
+    console.error("Error code:", error.original?.code);
+    console.error("Error errno:", error.original?.errno);
+    
+    // Provide specific guidance based on error type
+    if (error.original?.code === 'ETIMEDOUT') {
+      console.error("\n🔧 Troubleshooting steps:");
+      console.error("1. Check if your database server is running");
+      console.error("2. Verify network connectivity to the database host");
+      console.error("3. Check firewall settings");
+      console.error("4. Verify database credentials in environment file");
+      
+      if (isRailwayDeployment) {
+        console.error("\n📝 For Railway deployment:");
+        console.error("  - Ensure your Railway database is online");
+        console.error("  - Check if there are any network restrictions");
+        console.error("  - Verify the credentials in your .env file");
+        console.error("\n📝 For local development, set NODE_ENV=development to use local database");
+      } else {
+        console.error("\n📝 For local development:");
+        console.error("  - Ensure MySQL is running on your local machine");
+        console.error("  - Verify the credentials in your .env.local file");
+      }
+    }
   }
 })();
 
