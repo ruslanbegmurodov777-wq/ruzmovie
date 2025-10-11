@@ -1,15 +1,16 @@
-require("dotenv").config();
+import dotenv from "dotenv";
+import express from "express";
+import cors from "cors";
+import auth from "./routes/auth.js";
+import admin from "./routes/admin.js";
+import video from "./routes/video.js";
+import user from "./routes/user.js";
+import errorHandler from "./middlewares/errorHandler.js";
+
+dotenv.config();
 
 console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'SET' : 'NOT SET');
 console.log('NODE_ENV:', process.env.NODE_ENV);
-
-const express = require("express");
-const cors = require("cors");
-const auth = require("./routes/auth");
-const admin = require("./routes/admin");
-const video = require("./routes/video");
-const user = require("./routes/user");
-const errorHandler = require("./middlewares/errorHandler");
 
 const app = express();
 

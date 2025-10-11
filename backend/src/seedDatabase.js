@@ -1,5 +1,5 @@
-const { User, Video } = require('./sequelize');
-const bcrypt = require('bcryptjs');
+import { User, Video } from './sequelize.js';
+import bcrypt from 'bcryptjs';
 
 const seedDatabase = async () => {
   try {
@@ -106,10 +106,10 @@ const seedDatabase = async () => {
   }
 };
 
-module.exports = seedDatabase;
+export default seedDatabase;
 
 // Run seeding if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   seedDatabase().then(() => {
     process.exit(0);
   }).catch((error) => {

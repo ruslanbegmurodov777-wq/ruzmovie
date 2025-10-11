@@ -1,7 +1,7 @@
-const jwt = require("jsonwebtoken");
-const { User } = require("../sequelize");
+import jwt from "jsonwebtoken";
+import { User } from "../sequelize.js";
 
-exports.protect = async (req, res, next) => {
+export const protect = async (req, res, next) => {
   if (!req.headers.authorization) {
     return next({
       message: "You need to be logged in to visit this route",
@@ -41,7 +41,7 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-exports.admin = async (req, res, next) => {
+export const admin = async (req, res, next) => {
   if (req.user.isAdmin) {
     return next();
   }
@@ -53,7 +53,7 @@ exports.admin = async (req, res, next) => {
 };
 
 // Optional authentication - doesn't require login but sets user if authenticated
-exports.optionalAuth = async (req, res, next) => {
+export const optionalAuth = async (req, res, next) => {
   if (!req.headers.authorization) {
     req.user = null;
     return next();

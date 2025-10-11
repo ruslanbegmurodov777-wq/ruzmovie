@@ -1,12 +1,12 @@
-const { Op } = require("sequelize");
-const { VideoLike, Video, User, Subscription, View } = require("../sequelize");
-const asyncHandler = require("../middlewares/asyncHandler");
+import { Op } from "sequelize";
+import { VideoLike, Video, User, Subscription, View } from "../sequelize.js";
+import asyncHandler from "../middlewares/asyncHandler.js";
 
 // Cache for frequently accessed data
 const userCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-exports.toggleSubscribe = asyncHandler(async (req, res, next) => {
+export const toggleSubscribe = asyncHandler(async (req, res, next) => {
   if (req.user.id === req.params.id) {
     return next({
       message: "You cannot to subscribe to your own channel",
@@ -50,7 +50,7 @@ exports.toggleSubscribe = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: {} });
 });
 
-exports.getFeed = asyncHandler(async (req, res, next) => {
+export const getFeed = asyncHandler(async (req, res, next) => {
   const subscribedTo = await Subscription.findAll({
     where: {
       subscriber: req.user.id,
@@ -86,7 +86,7 @@ exports.getFeed = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: feed });
 });
 
-exports.editUser = asyncHandler(async (req, res, next) => {
+export const editUser = asyncHandler(async (req, res, next) => {
   await User.update(req.body, {
     where: { id: req.user.id },
   });
@@ -110,7 +110,7 @@ exports.editUser = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: user });
 });
 
-exports.searchUser = asyncHandler(async (req, res, next) => {
+export const searchUser = asyncHandler(async (req, res, next) => {
   if (!req.query.searchterm) {
     return next({ message: "Please enter your search term", statusCode: 400 });
   }
@@ -171,7 +171,7 @@ const setCachedUserData = (userId, data) => {
   });
 };
 
-exports.getProfile = asyncHandler(async (req, res, next) => {
+export const getProfile = asyncHandler(async (req, res, next) => {
   // Check cache first
   const cachedData = getCachedUserData(req.params.id);
   if (cachedData) {
@@ -260,7 +260,7 @@ exports.getProfile = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: user });
 });
 
-exports.recommendedVideos = asyncHandler(async (req, res, next) => {
+export const recommendedVideos = asyncHandler(async (req, res, next) => {
   const videos = await Video.findAll({
     attributes: [
       "id",
@@ -291,7 +291,7 @@ exports.recommendedVideos = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: videos });
 });
 
-exports.recommendChannels = asyncHandler(async (req, res, next) => {
+export const recommendChannels = asyncHandler(async (req, res, next) => {
   const channels = await User.findAll({
     limit: 10,
     attributes: ["id", "username", "avatar", "channelDescription"],
@@ -328,11 +328,11 @@ exports.recommendChannels = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: channels });
 });
 
-exports.getLikedVideos = asyncHandler(async (req, res, next) => {
+export const getLikedVideos = asyncHandler(async (req, res, next) => {
   return getVideos(VideoLike, req, res, next);
 });
 
-exports.getHistory = asyncHandler(async (req, res, next) => {
+export const getHistory = asyncHandler(async (req, res, next) => {
   return getVideos(View, req, res, next);
 });
 

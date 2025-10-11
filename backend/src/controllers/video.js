@@ -1,19 +1,19 @@
-const { Op } = require("sequelize");
-const {
+import { Op } from "sequelize";
+import {
   User,
   Video,
   VideoLike,
   Comment,
   View,
   Subscription,
-} = require("../sequelize");
-const asyncHandler = require("../middlewares/asyncHandler");
+} from "../sequelize.js";
+import asyncHandler from "../middlewares/asyncHandler.js";
 
 // Cache for frequently accessed data
 const videoCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-exports.newVideo = asyncHandler(async (req, res, next) => {
+export const newVideo = asyncHandler(async (req, res, next) => {
   let videoData = {
     ...req.body,
     userId: req.user.id,
@@ -74,7 +74,7 @@ exports.newVideo = asyncHandler(async (req, res, next) => {
 });
 
 // New endpoint to serve video files
-exports.getVideoFile = asyncHandler(async (req, res, next) => {
+export const getVideoFile = asyncHandler(async (req, res, next) => {
   const video = await Video.findByPk(req.params.id, {
     attributes: ['videoFile', 'fileName', 'mimeType', 'fileSize', 'uploadType']
   });
@@ -122,7 +122,7 @@ exports.getVideoFile = asyncHandler(async (req, res, next) => {
 });
 
 // New endpoint to serve thumbnail files
-exports.getThumbnailFile = asyncHandler(async (req, res, next) => {
+export const getThumbnailFile = asyncHandler(async (req, res, next) => {
   const video = await Video.findByPk(req.params.id, {
     attributes: ['thumbnailFile', 'thumbnailFileName', 'thumbnailMimeType', 'thumbnailFileSize', 'thumbnail']
   });
@@ -170,7 +170,7 @@ const setCachedVideoData = (videoId, data) => {
   });
 };
 
-exports.getVideo = asyncHandler(async (req, res, next) => {
+export const getVideo = asyncHandler(async (req, res, next) => {
   // Check cache first
   const cachedData = getCachedVideoData(req.params.id);
   if (cachedData) {
@@ -286,7 +286,7 @@ exports.getVideo = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: video });
 });
 
-exports.likeVideo = asyncHandler(async (req, res, next) => {
+export const likeVideo = asyncHandler(async (req, res, next) => {
   const video = await Video.findByPk(req.params.id);
 
   if (!video) {
@@ -332,7 +332,7 @@ exports.likeVideo = asyncHandler(async (req, res, next) => {
   res.json({ success: true, data: {} });
 });
 
-exports.dislikeVideo = asyncHandler(async (req, res, next) => {
+export const dislikeVideo = asyncHandler(async (req, res, next) => {
   const video = await Video.findByPk(req.params.id);
 
   if (!video) {
@@ -378,7 +378,7 @@ exports.dislikeVideo = asyncHandler(async (req, res, next) => {
   res.json({ success: true, data: {} });
 });
 
-exports.addComment = asyncHandler(async (req, res, next) => {
+export const addComment = asyncHandler(async (req, res, next) => {
   const video = await Video.findByPk(req.params.id);
 
   if (!video) {
@@ -408,7 +408,7 @@ exports.addComment = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: comment });
 });
 
-exports.newView = asyncHandler(async (req, res, next) => {
+export const newView = asyncHandler(async (req, res, next) => {
   const video = await Video.findByPk(req.params.id);
 
   if (!video) {
@@ -445,7 +445,7 @@ exports.newView = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: {} });
 });
 
-exports.searchVideo = asyncHandler(async (req, res, next) => {
+export const searchVideo = asyncHandler(async (req, res, next) => {
   if (!req.query.searchterm) {
     return next({ message: "Please enter the searchterm", statusCode: 400 });
   }

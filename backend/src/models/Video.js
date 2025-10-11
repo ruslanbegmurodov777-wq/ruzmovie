@@ -1,6 +1,6 @@
-const { Sequelize } = require("sequelize");
+import { Sequelize } from "sequelize";
 
-module.exports = (sequelize, DataTypes) => {
+export default (sequelize, DataTypes) => {
   return sequelize.define("Video", {
     id: {
       type: DataTypes.UUID,

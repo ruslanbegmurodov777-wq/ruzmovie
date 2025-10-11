@@ -1,10 +1,10 @@
-const { Op } = require("sequelize");
-const { User, Subscription, Video } = require("../sequelize");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const asyncHandler = require("../middlewares/asyncHandler");
+import { Op } from "sequelize";
+import { User, Subscription, Video } from "../sequelize.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import asyncHandler from "../middlewares/asyncHandler.js";
 
-exports.signup = asyncHandler(async (req, res, next) => {
+export const signup = asyncHandler(async (req, res, next) => {
   const user = await User.create(req.body);
 
   const salt = await bcrypt.genSalt(10);
@@ -19,7 +19,7 @@ exports.signup = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: token });
 });
 
-exports.login = async (req, res, next) => {
+export const login = async (req, res, next) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ where: { email } });
@@ -45,7 +45,7 @@ exports.login = async (req, res, next) => {
   res.status(200).json({ success: true, data: token });
 };
 
-exports.me = async (req, res) => {
+export const me = async (req, res) => {
   const user = await User.findByPk(req.user.id, {
     attributes: [
       "id",

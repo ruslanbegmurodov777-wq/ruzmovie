@@ -1,6 +1,6 @@
-const { Sequelize } = require("sequelize");
+import { Sequelize } from "sequelize";
 
-module.exports = (sequelize, DataTypes) =>
+export default (sequelize, DataTypes) =>
   sequelize.define("Subscription", {
     id: {
       type: DataTypes.UUID,

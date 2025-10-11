@@ -1,11 +1,12 @@
-const { Sequelize, DataTypes } = require("sequelize");
-const bcrypt = require("bcryptjs");
+import { Sequelize, DataTypes } from "sequelize";
+import bcrypt from "bcryptjs";
+import dotenv from "dotenv";
 
 // Load environment variables based on NODE_ENV
 if (process.env.NODE_ENV === 'production') {
-  require('dotenv').config();
+  dotenv.config();
 } else {
-  require('dotenv').config({ path: '.env.local' });
+  dotenv.config({ path: '.env.local' });
 }
 
 // Check if we're using Railway deployment or local development
@@ -78,12 +79,19 @@ const sequelize = new Sequelize(
 })();
 
 // Model imports
-const User = require("./models/User")(sequelize, DataTypes);
-const Video = require("./models/Video")(sequelize, DataTypes);
-const VideoLike = require("./models/VideoLike")(sequelize, DataTypes);
-const Comment = require("./models/Comment")(sequelize, DataTypes);
-const Subscription = require("./models/Subscription")(sequelize, DataTypes);
-const View = require("./models/View")(sequelize, DataTypes);
+import UserModel from "./models/User.js";
+import VideoModel from "./models/Video.js";
+import VideoLikeModel from "./models/VideoLike.js";
+import CommentModel from "./models/Comment.js";
+import SubscriptionModel from "./models/Subscription.js";
+import ViewModel from "./models/View.js";
+
+const User = UserModel(sequelize, DataTypes);
+const Video = VideoModel(sequelize, DataTypes);
+const VideoLike = VideoLikeModel(sequelize, DataTypes);
+const Comment = CommentModel(sequelize, DataTypes);
+const Subscription = SubscriptionModel(sequelize, DataTypes);
+const View = ViewModel(sequelize, DataTypes);
 
 // Associations
 Video.belongsTo(User, { foreignKey: "userId" });
@@ -122,7 +130,7 @@ Video.belongsToMany(User, { through: View, foreignKey: "videoId" });
   }
 })();
 
-module.exports = {
+export {
   sequelize,
   User,
   Video,
@@ -131,3 +139,5 @@ module.exports = {
   Subscription,
   View,
 };
+
+export default sequelize;
