@@ -1,6 +1,5 @@
-const express = require("express");
-const router = express.Router();
-const {
+import express from "express";
+import {
   toggleSubscribe,
   getFeed,
   editUser,
@@ -9,8 +8,10 @@ const {
   recommendChannels,
   getLikedVideos,
   getHistory,
-} = require("../controllers/user");
-const { protect } = require("../middlewares/auth");
+} from "../controllers/user.js";
+import { protect } from "../middlewares/auth.js";
+
+const router = express.Router();
 
 router.route("/").put(protect, editUser);
 router.route("/").get(protect, recommendChannels);

@@ -1,10 +1,9 @@
-const express = require("express");
-const multer = require("multer");
-const router = express.Router();
-const { recommendedVideos } = require("../controllers/user");
-const { protect, admin, optionalAuth } = require("../middlewares/auth");
+import express from "express";
+import multer from "multer";
+import { recommendedVideos } from "../controllers/user.js";
+import { protect, admin, optionalAuth } from "../middlewares/auth.js";
 
-const {
+import {
   newVideo,
   getVideo,
   likeVideo,
@@ -14,10 +13,12 @@ const {
   searchVideo,
   getVideoFile,
   getThumbnailFile,
-} = require("../controllers/video");
+} from "../controllers/video.js";
 
 // Configure multer for handling both video and thumbnail file uploads
 const upload = multer();
+
+const router = express.Router();
 
 router.route("/").post(
   protect,

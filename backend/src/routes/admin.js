@@ -1,15 +1,14 @@
-const express = require("express");
-const multer = require("multer");
-const router = express.Router();
-const {
+import express from "express";
+import multer from "multer";
+import {
   getUsers,
   removeUser,
   getVideos,
   removeVideo,
   addVideo,
   updateVideo,
-} = require("../controllers/admin");
-const { admin, protect } = require("../middlewares/auth");
+} from "../controllers/admin.js";
+import { admin, protect } from "../middlewares/auth.js";
 
 // Configure multer for video file uploads
 const storage = multer.memoryStorage();
@@ -27,6 +26,8 @@ const upload = multer({
     }
   },
 });
+
+const router = express.Router();
 
 router.route("/users").get(protect, admin, getUsers);
 router.route("/videos").get(protect, admin, getVideos);
