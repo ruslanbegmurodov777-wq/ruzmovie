@@ -1,4 +1,8 @@
 // Load environment variables
+// Force CommonJS mode
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+
 require("dotenv").config();
 
 const express = require("express");
