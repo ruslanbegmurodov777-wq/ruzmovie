@@ -21,4 +21,4 @@ router.route("/search").get(protect, searchUser);
 router.route("/:id").get(protect, getProfile);
 router.route("/:id/togglesubscribe").get(protect, toggleSubscribe);
 
-module.exports = router;
+export default router;
