@@ -2,9 +2,7 @@
   "name": "ruzmovie-backend",
   "version": "1.0.0",
   "description": "Youtube clone backend using Express + Sequelize",
-  "engines": {
-    "node": "20.x"
-  },
+  "type": "module",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

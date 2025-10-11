@@ -1,66 +1,29 @@
-// Load environment variables
-// Force CommonJS mode
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
+import express from "express";
+import cors from "cors";
+import path from "path";
+import dotenv from "dotenv";
+import mysql from "mysql2";
 
-require("dotenv").config();
+import auth from "./routes/auth.js";
+import admin from "./routes/admin.js";
+import video from "./routes/video.js";
+import user from "./routes/user.js";
+import errorHandler from "./middlewares/errorHandler.js";
 
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
-
-const auth = require("./routes/auth");
-const admin = require("./routes/admin");
-const video = require("./routes/video");
-const user = require("./routes/user");
-const errorHandler = require("./middlewares/errorHandler");
+dotenv.config();
 
 const app = express();
 
-// ✅ CORS sozlamasi — Netlify frontend manzilini ruxsat beramiz
+// ✅ CORS — Netlify frontend manzili
 const corsOptions = {
   origin: process.env.FRONTEND_URL || "https://ruzmovie2.netlify.app",
   credentials: true,
   optionsSuccessStatus: 200,
 };
-
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 
-// ✅ API Routes
-app.use("/api/v1/auth", auth);
-app.use("/api/v1/admin", admin);
-app.use("/api/v1/videos", video);
-app.use("/api/v1/users", user);
-
-// ✅ Health check
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "OK", message: "Server is running" });
-});
-
-// ❌ Frontend fayllarni Render orqali yuborish qismi olib tashlandi
-// Chunki frontend Netlify’da ishlayapti
-
-// ✅ 404 yoki noto‘g‘ri route uchun xabar
-app.use((req, res) => {
-  res.status(404).json({ message: "Endpoint not found" });
-});
-
-// ✅ Xatoliklarni ushlash middleware
-app.use(errorHandler);
-
-// ✅ Serverni ishga tushurish
-const isMainModule = process.argv[1] && process.argv[1].includes("server.js");
-
-if (isMainModule) {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
-}
-
-import mysql from "mysql2";
-import dotenv from "dotenv";
-dotenv.config();
-
+// ✅ MySQL ulanadi
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -77,6 +40,27 @@ db.connect((err) => {
   }
 });
 
-export default db;
+// ✅ API routes
+app.use("/api/v1/auth", auth);
+app.use("/api/v1/admin", admin);
+app.use("/api/v1/videos", video);
+app.use("/api/v1/users", user);
 
-module.exports = app;
+// ✅ Health check
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "OK", message: "Server is running" });
+});
+
+// ✅ 404 handler
+app.use((req, res) => {
+  res.status(404).json({ message: "Endpoint not found" });
+});
+
+// ✅ Error handler
+app.use(errorHandler);
+
+// ✅ Serverni ishga tushurish
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+
+export default app;
