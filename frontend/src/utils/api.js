@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Create an axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || "https://ruzmovie-6.onrender.com"
+  baseURL: process.env.REACT_APP_API_URL || "https://ruzmovie-6.onrender.com/api"
 });
 /**
  * Fetch all videos

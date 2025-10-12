@@ -1,21 +1,43 @@
 // Load environment variables
-require("dotenv").config();
+import dotenv from "dotenv";
+import express from "express";
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
+// Env load
+dotenv.config();
 
-const auth = require("./routes/auth");
-const admin = require("./routes/admin");
-const video = require("./routes/video");
-const user = require("./routes/user");
-const errorHandler = require("./middlewares/errorHandler");
+// Agar kerak bo‘lsa __dirname o‘rnini to‘ldiramiz
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+import auth from "./routes/auth.js";
+import admin from "./routes/admin.js";
+import video from "./routes/video.js";
+import user from "./routes/user.js";
+import errorHandler from "./middlewares/errorHandler.js";
 
 const app = express();
 
 // ✅ CORS sozlamasi — Netlify frontend manzilini ruxsat beramiz
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || "https://ruzmovieuz.netlify.app",
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // List of allowed origins
+    const allowedOrigins = [
+      process.env.FRONTEND_URL || "http://localhost:3000",
+      "https://ruzmovieuz.netlify.app"
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
 };
@@ -46,9 +68,7 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // ✅ Serverni ishga tushurish
-if (require.main === module) {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
-}
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
 
-module.exports = app;
+export default app;
