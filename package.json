@@ -2,6 +2,7 @@
   "name": "ruzmovie",
   "version": "1.0.0",
   "description": "Full-stack movie streaming platform",
+  "type": "module",
   "main": "backend/src/server.js",
   "scripts": {
     "build": "cd frontend && npm run build",

@@ -1,12 +1,12 @@
-const serverless = require('serverless-http');
+import serverless from 'serverless-http';
 // Use relative paths for all requires to ensure they work in the Netlify environment
-const express = require('express');
-const cors = require('cors');
-const auth = require('../../backend/src/routes/auth');
-const admin = require('../../backend/src/routes/admin');
-const video = require('../../backend/src/routes/video');
-const user = require('../../backend/src/routes/user');
-const errorHandler = require('../../backend/src/middlewares/errorHandler');
+import express from 'express';
+import cors from 'cors';
+import auth from '../../backend/src/routes/auth.js';
+import admin from '../../backend/src/routes/admin.js';
+import video from '../../backend/src/routes/video.js';
+import user from '../../backend/src/routes/user.js';
+import errorHandler from '../../backend/src/middlewares/errorHandler.js';
 
 // Create express app
 const app = express();
@@ -37,4 +37,4 @@ app.get("/api/health", (req, res) => {
 app.use(errorHandler);
 
 // Export the serverless function
-module.exports.handler = serverless(app);
+export const handler = serverless(app);
