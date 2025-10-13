@@ -155,7 +155,7 @@ const Upload = () => {
           formDataObj.append('thumbnailFile', thumbnailFile);
         }
         
-        response = await axios.post('/api/v1/videos', formDataObj, {
+        response = await axios.post('/videos', formDataObj, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -175,7 +175,7 @@ const Upload = () => {
           return;
         }
         
-        response = await axios.post('/api/v1/admin/videos', formData);
+        response = await axios.post('/admin/videos', formData);
       }
       
       setSuccess('Video uploaded successfully!');

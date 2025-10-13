@@ -31,8 +31,8 @@ const AdminPanel = () => {
   const fetchStats = useCallback(async () => {
     try {
       const [videosRes, usersRes] = await Promise.all([
-        axios.get("/api/v1/admin/videos"),
-        axios.get("/api/v1/admin/users"),
+        axios.get("/admin/videos"),
+        axios.get("/admin/users"),
       ]);
 
       // Calculate total views from all videos
@@ -56,7 +56,7 @@ const AdminPanel = () => {
     try {
       setLoading(true);
       setError("");
-      const response = await axios.get("/api/v1/admin/videos");
+      const response = await axios.get("/admin/videos");
       setVideos(response.data.data || []);
     } catch (error) {
       const errorMsg =
@@ -72,7 +72,7 @@ const AdminPanel = () => {
     try {
       setLoading(true);
       setError("");
-      const response = await axios.get("/api/v1/admin/users");
+      const response = await axios.get("/admin/users");
       setUsers(response.data.data || []);
     } catch (error) {
       const errorMsg =
@@ -118,7 +118,7 @@ const AdminPanel = () => {
   const deleteUser = useCallback(async (username) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
       try {
-        await axios.delete(`/api/v1/admin/users/${username}`);
+        await axios.delete(`/admin/users/${username}`);
         setSuccess("User deleted successfully");
         fetchUsers(); // Refresh the list
         fetchStats(); // Update stats
@@ -157,7 +157,7 @@ const AdminPanel = () => {
 
   const updateVideo = useCallback(async (videoId) => {
     try {
-      await axios.put(`/api/v1/admin/videos/${videoId}`, editForm);
+      await axios.put(`/admin/videos/${videoId}`, editForm);
       setSuccess("Video updated successfully");
       setEditingVideo(null);
       fetchVideos(); // Refresh the list

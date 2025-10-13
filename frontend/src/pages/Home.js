@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import axios from 'axios';
-import VideoCard from '../components/VideoCard';
-import { useAuth } from '../contexts/AuthContext';
-import './Home.css';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import axios from "axios";
+import VideoCard from "../components/VideoCard";
+import { useAuth } from "../contexts/AuthContext";
+import "./Home.css";
 
 const Home = () => {
   const { isAdmin } = useAuth();
@@ -10,26 +10,29 @@ const Home = () => {
   const [filteredVideos, setFilteredVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState("all");
 
-  const categories = useMemo(() => [
-    { id: 'all', label: 'All' },
-    { id: 'movies', label: 'Movies' },
-    { id: 'music', label: 'Music' },
-    { id: 'dramas', label: 'Dramas' },
-    { id: 'cartoons', label: 'Cartoons' }
-  ], []);
+  const categories = useMemo(
+    () => [
+      { id: "all", label: "All" },
+      { id: "movies", label: "Movies" },
+      { id: "music", label: "Music" },
+      { id: "dramas", label: "Dramas" },
+      { id: "cartoons", label: "Cartoons" },
+    ],
+    []
+  );
 
   const fetchRecommendedVideos = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/v1/videos');
+      const response = await axios.get("/videos");
       const videosData = response.data.data || [];
       setVideos(videosData);
       setFilteredVideos(videosData);
     } catch (error) {
       // Silently handle error to avoid console pollution
-      setError('Failed to load videos');
+      setError("Failed to load videos");
     } finally {
       setLoading(false);
     }
@@ -41,22 +44,22 @@ const Home = () => {
 
   const filterVideosByCategory = useCallback(() => {
     let filtered;
-    if (activeCategory === 'all') {
+    if (activeCategory === "all") {
       filtered = videos;
     } else {
-      filtered = videos.filter(video => video.category === activeCategory);
+      filtered = videos.filter((video) => video.category === activeCategory);
     }
-    
+
     // Ensure top-rated videos stay at the top even after filtering
     const sortedFiltered = [...filtered].sort((a, b) => {
       // First sort by featured (top-rated) status
       if (a.featured && !b.featured) return -1;
       if (!a.featured && b.featured) return 1;
-      
+
       // Then sort by creation date (newest first)
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
-    
+
     setFilteredVideos(sortedFiltered);
   }, [videos, activeCategory]);
 
@@ -65,10 +68,16 @@ const Home = () => {
   }, [filterVideosByCategory]);
 
   const noVideosMessage = useMemo(() => {
-    if (activeCategory === 'all') {
+    if (activeCategory === "all") {
       return <p>No videos available. Be the first to upload!</p>;
     }
-    return <p>No {categories.find(c => c.id === activeCategory)?.label.toLowerCase()} found.</p>;
+    return (
+      <p>
+        No{" "}
+        {categories.find((c) => c.id === activeCategory)?.label.toLowerCase()}{" "}
+        found.
+      </p>
+    );
   }, [activeCategory, categories]);
 
   if (loading) {
@@ -95,12 +104,14 @@ const Home = () => {
         )}
         <div className="page-header">
           <h2 className="page-title">Ruzmovie</h2>
-          
+
           <div className="category-filters">
             {categories.map((category) => (
               <button
                 key={category.id}
-                className={`category-btn ${activeCategory === category.id ? 'active' : ''}`}
+                className={`category-btn ${
+                  activeCategory === category.id ? "active" : ""
+                }`}
                 onClick={() => setActiveCategory(category.id)}
               >
                 {category.label}
@@ -108,11 +119,9 @@ const Home = () => {
             ))}
           </div>
         </div>
-        
+
         {filteredVideos.length === 0 && !loading ? (
-          <div className="no-videos">
-            {noVideosMessage}
-          </div>
+          <div className="no-videos">{noVideosMessage}</div>
         ) : (
           <div className="videos-grid">
             {filteredVideos.map((video) => (

@@ -19,7 +19,10 @@ const Profile = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const tabParam = urlParams.get("tab");
-    if (tabParam && ["info", "watched", "liked", "starred"].includes(tabParam)) {
+    if (
+      tabParam &&
+      ["info", "watched", "liked", "starred"].includes(tabParam)
+    ) {
       setActiveTab(tabParam);
     }
   }, [location]);
@@ -27,7 +30,7 @@ const Profile = () => {
   const fetchWatchedVideos = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/v1/users/history");
+      const response = await axios.get("/users/history");
       setWatchedVideos(response.data.data || []);
     } catch (error) {
       // Silently handle error to avoid console pollution
@@ -40,7 +43,7 @@ const Profile = () => {
   const fetchLikedVideos = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/v1/users/likedVideos");
+      const response = await axios.get("/users/likedVideos");
       setLikedVideos(response.data.data || []);
     } catch (error) {
       // Silently handle error to avoid console pollution
@@ -66,7 +69,13 @@ const Profile = () => {
       // Also fetch when tab changes
       fetchUserData();
     }
-  }, [isAuthenticated, activeTab, fetchWatchedVideos, fetchLikedVideos, fetchUserData]);
+  }, [
+    isAuthenticated,
+    activeTab,
+    fetchWatchedVideos,
+    fetchLikedVideos,
+    fetchUserData,
+  ]);
 
   const noContentMessage = useMemo(() => {
     switch (activeTab) {

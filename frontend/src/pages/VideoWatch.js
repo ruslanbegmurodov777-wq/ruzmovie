@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
-import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
-import { useStarred } from '../contexts/StarredContext';
-import VideoPlayer from '../components/VideoPlayer';
-import './VideoWatch.css';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useParams } from "react-router-dom";
+import axios from "axios";
+import { useAuth } from "../contexts/AuthContext";
+import { useStarred } from "../contexts/StarredContext";
+import VideoPlayer from "../components/VideoPlayer";
+import "./VideoWatch.css";
 
 const VideoWatch = () => {
   const { id } = useParams();
@@ -13,25 +13,25 @@ const VideoWatch = () => {
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [newComment, setNewComment] = useState('');
+  const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
 
   const fetchVideo = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/v1/videos/${id}`);
+      const response = await axios.get(`/videos/${id}`);
       setVideo(response.data.data);
-      
+
       // Record a view only if user is authenticated and hasn't viewed yet
       if (isAuthenticated && !response.data.data.isViewed) {
         try {
-          await axios.get(`/api/v1/videos/${id}/view`);
+          await axios.get(`/videos/${id}/view`);
         } catch (viewError) {
           // Silently handle view recording errors
         }
       }
     } catch (error) {
-      setError('Failed to load video');
+      setError("Failed to load video");
     } finally {
       setLoading(false);
     }
@@ -43,23 +43,27 @@ const VideoWatch = () => {
 
   const handleLike = useCallback(async () => {
     if (!isAuthenticated) {
-      alert('Please login to like videos');
+      alert("Please login to like videos");
       return;
     }
     try {
-      await axios.get(`/api/v1/videos/${id}/like`);
-      
+      await axios.get(`/videos/${id}/like`);
+
       // Update like state without refetching entire video
-      setVideo(prevVideo => {
+      setVideo((prevVideo) => {
         const wasLiked = prevVideo.isLiked;
         const wasDisliked = prevVideo.isDisliked;
-        
+
         return {
           ...prevVideo,
           isLiked: !wasLiked,
           isDisliked: false, // Remove dislike if it was disliked
-          likesCount: wasLiked ? prevVideo.likesCount - 1 : prevVideo.likesCount + 1,
-          dislikesCount: wasDisliked ? prevVideo.dislikesCount - 1 : prevVideo.dislikesCount
+          likesCount: wasLiked
+            ? prevVideo.likesCount - 1
+            : prevVideo.likesCount + 1,
+          dislikesCount: wasDisliked
+            ? prevVideo.dislikesCount - 1
+            : prevVideo.dislikesCount,
         };
       });
     } catch (error) {
@@ -69,23 +73,27 @@ const VideoWatch = () => {
 
   const handleDislike = useCallback(async () => {
     if (!isAuthenticated) {
-      alert('Please login to dislike videos');
+      alert("Please login to dislike videos");
       return;
     }
     try {
-      await axios.get(`/api/v1/videos/${id}/dislike`);
-      
+      await axios.get(`/videos/${id}/dislike`);
+
       // Update dislike state without refetching entire video
-      setVideo(prevVideo => {
+      setVideo((prevVideo) => {
         const wasLiked = prevVideo.isLiked;
         const wasDisliked = prevVideo.isDisliked;
-        
+
         return {
           ...prevVideo,
           isLiked: false, // Remove like if it was liked
           isDisliked: !wasDisliked,
-          likesCount: wasLiked ? prevVideo.likesCount - 1 : prevVideo.likesCount,
-          dislikesCount: wasDisliked ? prevVideo.dislikesCount - 1 : prevVideo.dislikesCount + 1
+          likesCount: wasLiked
+            ? prevVideo.likesCount - 1
+            : prevVideo.likesCount,
+          dislikesCount: wasDisliked
+            ? prevVideo.dislikesCount - 1
+            : prevVideo.dislikesCount + 1,
         };
       });
     } catch (error) {
@@ -93,33 +101,38 @@ const VideoWatch = () => {
     }
   }, [id, isAuthenticated]);
 
-  const handleCommentSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    if (!isAuthenticated) {
-      alert('Please login to comment');
-      return;
-    }
-    if (!newComment.trim()) return;
+  const handleCommentSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (!isAuthenticated) {
+        alert("Please login to comment");
+        return;
+      }
+      if (!newComment.trim()) return;
 
-    setSubmittingComment(true);
-    try {
-      const response = await axios.post(`/api/v1/videos/${id}/comment`, { text: newComment });
-      const newCommentData = response.data.data;
-      
-      // Update only comments without refetching entire video
-      setVideo(prevVideo => ({
-        ...prevVideo,
-        comments: [newCommentData, ...(prevVideo.comments || [])],
-        commentsCount: (prevVideo.commentsCount || 0) + 1
-      }));
-      
-      setNewComment('');
-    } catch (error) {
-      // Silently handle error
-    } finally {
-      setSubmittingComment(false);
-    }
-  }, [id, isAuthenticated, newComment]);
+      setSubmittingComment(true);
+      try {
+        const response = await axios.post(`/videos/${id}/comment`, {
+          text: newComment,
+        });
+        const newCommentData = response.data.data;
+
+        // Update only comments without refetching entire video
+        setVideo((prevVideo) => ({
+          ...prevVideo,
+          comments: [newCommentData, ...(prevVideo.comments || [])],
+          commentsCount: (prevVideo.commentsCount || 0) + 1,
+        }));
+
+        setNewComment("");
+      } catch (error) {
+        // Silently handle error
+      } finally {
+        setSubmittingComment(false);
+      }
+    },
+    [id, isAuthenticated, newComment]
+  );
 
   const handleStarClick = useCallback(() => {
     if (video) {
@@ -128,10 +141,10 @@ const VideoWatch = () => {
   }, [video, toggleStarred]);
 
   const formatDate = useCallback((dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   }, []);
 
@@ -141,7 +154,7 @@ const VideoWatch = () => {
     } else if (views >= 1000) {
       return `${(views / 1000).toFixed(1)}K`;
     }
-    return views?.toString() || '0';
+    return views?.toString() || "0";
   }, []);
 
   const errorMessage = useMemo(() => {
@@ -156,36 +169,40 @@ const VideoWatch = () => {
   return (
     <div className="video-watch">
       <div className="video-player-container">
-        <VideoPlayer 
-          video={video}
-          autoPlay={true}
-          className="video-player"
-        />
+        <VideoPlayer video={video} autoPlay={true} className="video-player" />
       </div>
 
       <div className="video-content">
         <div className="video-main">
           <h1 className="video-title">{video.title}</h1>
-          
+
           <div className="video-stats">
-            <span>{formatViews(video.views)} views • {formatDate(video.createdAt)}</span>
+            <span>
+              {formatViews(video.views)} views • {formatDate(video.createdAt)}
+            </span>
             <div className="video-actions">
-              <button 
-                className={`action-btn ${video.isLiked ? 'active' : ''}`}
+              <button
+                className={`action-btn ${video.isLiked ? "active" : ""}`}
                 onClick={handleLike}
               >
                 👍 {video.likesCount}
               </button>
-              <button 
-                className={`action-btn ${video.isDisliked ? 'active' : ''}`}
+              <button
+                className={`action-btn ${video.isDisliked ? "active" : ""}`}
                 onClick={handleDislike}
               >
                 👎 {video.dislikesCount}
               </button>
-              <button 
-                className={`action-btn star-action ${isStarred(video.id) ? 'starred' : ''}`}
+              <button
+                className={`action-btn star-action ${
+                  isStarred(video.id) ? "starred" : ""
+                }`}
                 onClick={handleStarClick}
-                title={isStarred(video.id) ? 'Remove from watch later' : 'Add to watch later'}
+                title={
+                  isStarred(video.id)
+                    ? "Remove from watch later"
+                    : "Add to watch later"
+                }
               >
                 ⭐
               </button>
@@ -200,21 +217,31 @@ const VideoWatch = () => {
 
           <div className="comments-section">
             <h3>{video.commentsCount} Comments</h3>
-            
+
             <form onSubmit={handleCommentSubmit} className="comment-form">
               <textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
-                placeholder={isAuthenticated ? "Add a comment..." : "Please login to add comments"}
+                placeholder={
+                  isAuthenticated
+                    ? "Add a comment..."
+                    : "Please login to add comments"
+                }
                 rows="3"
                 disabled={!isAuthenticated}
               />
-              <button 
-                type="submit" 
-                disabled={submittingComment || !newComment.trim() || !isAuthenticated}
+              <button
+                type="submit"
+                disabled={
+                  submittingComment || !newComment.trim() || !isAuthenticated
+                }
                 className="comment-submit"
               >
-                {!isAuthenticated ? 'Login to Comment' : submittingComment ? 'Adding...' : 'Comment'}
+                {!isAuthenticated
+                  ? "Login to Comment"
+                  : submittingComment
+                  ? "Adding..."
+                  : "Comment"}
               </button>
             </form>
 
@@ -223,15 +250,24 @@ const VideoWatch = () => {
                 <div key={comment.id} className="comment">
                   <div className="comment-avatar">
                     {comment.User?.avatar ? (
-                      <img src={comment.User.avatar} alt={comment.User.username} />
+                      <img
+                        src={comment.User.avatar}
+                        alt={comment.User.username}
+                      />
                     ) : (
-                      <div className="default-avatar">{comment.User?.username?.[0]?.toUpperCase()}</div>
+                      <div className="default-avatar">
+                        {comment.User?.username?.[0]?.toUpperCase()}
+                      </div>
                     )}
                   </div>
                   <div className="comment-content">
                     <div className="comment-header">
-                      <span className="comment-author">{comment.User?.username}</span>
-                      <span className="comment-date">{formatDate(comment.createdAt)}</span>
+                      <span className="comment-author">
+                        {comment.User?.username}
+                      </span>
+                      <span className="comment-date">
+                        {formatDate(comment.createdAt)}
+                      </span>
                     </div>
                     <p className="comment-text">{comment.text}</p>
                   </div>

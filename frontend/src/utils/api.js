@@ -12,7 +12,7 @@ const api = axios.create({
  */
 export const fetchVideos = async () => {
   try {
-    const response = await api.get("/v1/videos");
+    const response = await api.get("/videos");
     return response.data.data;
   } catch (error) {
     console.error("Error fetching videos:", error);
@@ -27,7 +27,7 @@ export const fetchVideos = async () => {
  */
 export const fetchVideo = async (id) => {
   try {
-    const response = await api.get(`/v1/videos/${id}`);
+    const response = await api.get(`/videos/${id}`);
     return response.data.data;
   } catch (error) {
     console.error(`Error fetching video ${id}:`, error);
@@ -43,7 +43,7 @@ export const fetchVideo = async (id) => {
 export const searchVideos = async (searchTerm) => {
   try {
     const response = await api.get(
-      `/v1/videos/search?searchterm=${encodeURIComponent(searchTerm)}`
+      `/videos/search?searchterm=${encodeURIComponent(searchTerm)}`
     );
     return response.data.data;
   } catch (error) {
