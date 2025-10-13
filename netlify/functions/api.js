@@ -22,14 +22,14 @@ const corsOptions = {
 app.use(express.json({ limit: "10mb" }));
 app.use(cors(corsOptions));
 
-// API Routes
-app.use("/api/v1/auth", auth);
-app.use("/api/v1/admin", admin);
-app.use("/api/v1/videos", video);
-app.use("/api/v1/users", user);
+// API Routes - Note: Netlify redirects /api/* to this function, so we don't need the /api prefix here
+app.use("/v1/auth", auth);
+app.use("/v1/admin", admin);
+app.use("/v1/videos", video);
+app.use("/v1/users", user);
 
 // Health check endpoint
-app.get("/api/health", (req, res) => {
+app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK", message: "Server is running" });
 });
 
