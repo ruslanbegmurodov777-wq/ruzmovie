@@ -5,7 +5,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import axios from "axios";
+import api from "../utils/api"; // Use your api instance instead of axios
 
 const AuthContext = createContext();
 
@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
   // Set axios default header if token exists
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       fetchUser();
     } else {
       setLoading(false);
@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = useCallback(async () => {
     try {
-      const response = await axios.get("/auth/me");
+      const response = await api.get("/auth/me");
       setUser(response.data.data);
     } catch (error) {
       // Silently handle error to avoid console pollution
@@ -47,12 +47,12 @@ export const AuthProvider = ({ children }) => {
   const login = useCallback(
     async (email, password) => {
       try {
-        const response = await axios.post("/auth/login", { email, password });
+        const response = await api.post("/auth/login", { email, password });
         const newToken = response.data.data;
 
         localStorage.setItem("token", newToken);
         setToken(newToken);
-        axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+        api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
 
         await fetchUser();
         return { success: true };
@@ -69,12 +69,12 @@ export const AuthProvider = ({ children }) => {
   const register = useCallback(
     async (userData) => {
       try {
-        const response = await axios.post("/auth/signup", userData);
+        const response = await api.post("/auth/signup", userData);
         const newToken = response.data.data;
 
         localStorage.setItem("token", newToken);
         setToken(newToken);
-        axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+        api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
 
         await fetchUser();
         return { success: true };
@@ -92,7 +92,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
     setToken(null);
     setUser(null);
-    delete axios.defaults.headers.common["Authorization"];
+    delete api.defaults.headers.common["Authorization"];
   }, []);
 
   const value = {

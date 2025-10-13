@@ -1,5 +1,14 @@
-const { Sequelize } = require("sequelize");
-require('dotenv').config({ path: __dirname + '/.env' });
+import { Sequelize } from "sequelize";
+import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+import path from "path";
+
+// Get __dirname equivalent in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 console.log("Testing database connection...\n");
 

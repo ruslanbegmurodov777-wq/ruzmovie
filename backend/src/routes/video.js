@@ -22,7 +22,7 @@ const router = express.Router();
 
 router.route("/").post(
   protect,
-  admin,
+  // Faqat foydalanuvchi autentifikatsiya qilingan bo'lsa yetarli
   upload.fields([
     { name: "videoFile", maxCount: 1 },
     { name: "thumbnailFile", maxCount: 1 },

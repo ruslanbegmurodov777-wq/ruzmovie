@@ -6,6 +6,35 @@ const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL, // faqat shu
 });
 
+// Add a request interceptor to include auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add a response interceptor to handle token expiration
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid, redirect to login
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
+
 /**
  * Fetch all videos
  * @returns {Promise<Array>} Array of video objects
@@ -48,6 +77,65 @@ export const searchVideos = async (searchTerm) => {
     return response.data.data;
   } catch (error) {
     console.error(`Error searching videos for "${searchTerm}":`, error);
+    throw error;
+  }
+};
+
+/**
+ * User registration
+ * @param {Object} userData - User registration data
+ * @returns {Promise<Object>} Response data
+ */
+export const registerUser = async (userData) => {
+  try {
+    const response = await api.post("/auth/signup", userData);
+    return response.data;
+  } catch (error) {
+    console.error("Error registering user:", error);
+    throw error;
+  }
+};
+
+/**
+ * User login
+ * @param {Object} credentials - User login credentials
+ * @returns {Promise<Object>} Response data
+ */
+export const loginUser = async (credentials) => {
+  try {
+    const response = await api.post("/auth/login", credentials);
+    return response.data;
+  } catch (error) {
+    console.error("Error logging in:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get current user profile
+ * @returns {Promise<Object>} User profile data
+ */
+export const getProfile = async () => {
+  try {
+    const response = await api.get("/auth/me");
+    return response.data.data;
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    throw error;
+  }
+};
+
+/**
+ * Create a new video
+ * @param {Object} videoData - Video data
+ * @returns {Promise<Object>} Created video data
+ */
+export const createVideo = async (videoData) => {
+  try {
+    const response = await api.post("/videos", videoData);
+    return response.data.data;
+  } catch (error) {
+    console.error("Error creating video:", error);
     throw error;
   }
 };

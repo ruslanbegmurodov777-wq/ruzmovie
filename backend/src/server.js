@@ -2,7 +2,14 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import dotenv from "dotenv";
-import mysql from "mysql2";
+import { fileURLToPath } from "url";
+
+// Load environment variables
+dotenv.config();
+
+// Get __dirname equivalent in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import auth from "./routes/auth.js";
 import admin from "./routes/admin.js";
@@ -10,7 +17,8 @@ import video from "./routes/video.js";
 import user from "./routes/user.js";
 import errorHandler from "./middlewares/errorHandler.js";
 
-dotenv.config();
+// Import sequelize and models
+import { sequelize, User, Video, VideoLike, Comment, Subscription, View } from "./sequelize.js";
 
 const app = express();
 
@@ -23,22 +31,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 
-// ✅ MySQL ulanadi
-const db = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-});
-
-db.connect((err) => {
-  if (err) {
-    console.error("❌ MySQL connection failed:", err.message);
-  } else {
-    console.log("✅ MySQL connected successfully to Railway!");
-  }
-});
+// ✅ Health check
 app.get("/", (req, res) => {
   res.json({ message: "🎬 RuzMovie backend is running successfully!" });
 });
@@ -64,6 +57,27 @@ app.use(errorHandler);
 
 // ✅ Serverni ishga tushurish
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+
+// Only start server if this file is run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  app.listen(PORT, async () => {
+    console.log(`✅ Server running on port ${PORT}`);
+    
+    try {
+      // Test database connection
+      await sequelize.authenticate();
+      console.log("✅ Database connection established successfully.");
+      
+      // Sync models
+      await sequelize.sync({ force: false });
+      console.log("✅ All models synchronized successfully.");
+      
+      console.log(`🚀 Server is ready at http://localhost:${PORT}`);
+    } catch (error) {
+      console.error("❌ Database connection failed:", error.message);
+      process.exit(1);
+    }
+  });
+}
 
 export default app;

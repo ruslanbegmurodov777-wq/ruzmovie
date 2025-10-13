@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: ruzmovie-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        fromDatabase:
+          name: ruzmovie-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ruzmovie-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: ruzmovie-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ruzmovie-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: ruzmovie-db
+          property: database
+      - key: DB_DIALECT
+        value: mysql
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: https://ruzmovieuz.netlify.app
+
+databases:
+  - name: ruzmovie-db
+    databaseName: ruzmovie
