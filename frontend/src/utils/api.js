@@ -3,9 +3,9 @@ import axios from "axios";
 
 // Create an axios instance
 const api = axios.create({
-  baseURL:
-    process.env.REACT_APP_API_URL || "https://ruzmovie-6.onrender.com/api/v1",
+  baseURL: process.env.REACT_APP_API_URL, // faqat shu
 });
+
 /**
  * Fetch all videos
  * @returns {Promise<Array>} Array of video objects
