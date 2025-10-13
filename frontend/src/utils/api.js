@@ -1,14 +1,21 @@
 // Utility functions for API calls
 import axios from "axios";
 
+// Log the environment variable to see what it's set to
+console.log("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);
+
 // Create an axios instance
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL, // faqat shu
 });
 
+// Log the axios instance config
+console.log("Axios instance config:", api.defaults);
+
 // Add a request interceptor to include auth token
 api.interceptors.request.use(
   (config) => {
+    console.log("Making request to:", config);
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -26,6 +33,7 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    console.log("API Error:", error);
     if (error.response?.status === 401) {
       // Token expired or invalid, redirect to login
       localStorage.removeItem("token");
