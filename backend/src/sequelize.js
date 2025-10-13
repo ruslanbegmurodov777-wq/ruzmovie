@@ -2,31 +2,38 @@ import { Sequelize, DataTypes } from "sequelize";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 
-// Load environment variables based on NODE_ENV
+// Load environment variables
 if (process.env.NODE_ENV === "production") {
   dotenv.config();
 } else {
   dotenv.config({ path: ".env.local" });
 }
 
-// Check if we're using Railway deployment or local development
-const isRailwayDeployment =
-  process.env.DB_HOST && process.env.DB_HOST.includes("railway.app");
+// Detect Aiven MySQL (ssl required)
+const isAiven = process.env.DB_HOST?.includes("aivencloud.com");
 
-// Use environment variables with fallbacks
 const sequelize = new Sequelize(
   process.env.DB_NAME || "movie",
   process.env.DB_USER || "root",
-  process.env.DB_PASSWORD || "ruslanbek777",
+  process.env.DB_PASS || "ruslanbek777",
   {
     host: process.env.DB_HOST || "127.0.0.1",
     port: process.env.DB_PORT || 3306,
     dialect: process.env.DB_DIALECT || "mysql",
     logging: false,
-    // Add connection timeout settings
-    dialectOptions: {
-      connectTimeout: 60000, // 60 seconds
-    },
+
+    dialectOptions: isAiven
+      ? {
+          ssl: {
+            require: true,
+            rejectUnauthorized: false,
+          },
+          connectTimeout: 60000,
+        }
+      : {
+          connectTimeout: 60000,
+        },
+
     pool: {
       max: 5,
       min: 0,
@@ -36,52 +43,27 @@ const sequelize = new Sequelize(
   }
 );
 
-// Connection check
+// Test connection
 (async () => {
   try {
-    console.log(`Attempting to connect to database...`);
-    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-    console.log(`Host: ${process.env.DB_HOST || "127.0.0.1"}`);
-    console.log(`Database: ${process.env.DB_NAME || "movie"}`);
-    console.log(`User: ${process.env.DB_USER || "root"}`);
-    console.log(`Port: ${process.env.DB_PORT || 3306}`);
+    console.log("🚀 Attempting to connect to database...");
+    console.log(`Host: ${process.env.DB_HOST}`);
+    console.log(`Database: ${process.env.DB_NAME}`);
+    console.log(`User: ${process.env.DB_USER}`);
+    console.log(`SSL Required: ${isAiven ? "✅ Yes" : "❌ No"}`);
 
     await sequelize.authenticate();
-    console.log("✅ Database connection has been established successfully.");
-    // Use force: false to avoid schema conflicts
+    console.log("✅ Database connection established successfully.");
+
     await sequelize.sync({ force: false });
-    console.log("✅ All models were synchronized successfully.");
+    console.log("✅ All models synchronized successfully.");
   } catch (error) {
-    console.error("❌ Unable to connect to the database:", error.message);
+    console.error("❌ Unable to connect to database:", error.message);
     console.error("Error code:", error.original?.code);
-    console.error("Error errno:", error.original?.errno);
-
-    // Provide specific guidance based on error type
-    if (error.original?.code === "ETIMEDOUT") {
-      console.error("\n🔧 Troubleshooting steps:");
-      console.error("1. Check if your database server is running");
-      console.error("2. Verify network connectivity to the database host");
-      console.error("3. Check firewall settings");
-      console.error("4. Verify database credentials in environment file");
-
-      if (isRailwayDeployment) {
-        console.error("\n📝 For Railway deployment:");
-        console.error("  - Ensure your Railway database is online");
-        console.error("  - Check if there are any network restrictions");
-        console.error("  - Verify the credentials in your .env file");
-        console.error(
-          "\n📝 For local development, set NODE_ENV=development to use local database"
-        );
-      } else {
-        console.error("\n📝 For local development:");
-        console.error("  - Ensure MySQL is running on your local machine");
-        console.error("  - Verify the credentials in your .env.local file");
-      }
-    }
   }
 })();
 
-// Model imports
+// Models
 import UserModel from "./models/User.js";
 import VideoModel from "./models/Video.js";
 import VideoLikeModel from "./models/VideoLike.js";
@@ -96,7 +78,7 @@ const Comment = CommentModel(sequelize, DataTypes);
 const Subscription = SubscriptionModel(sequelize, DataTypes);
 const View = ViewModel(sequelize, DataTypes);
 
-// Associations
+// Relationships
 Video.belongsTo(User, { foreignKey: "userId" });
 User.belongsToMany(Video, { through: VideoLike, foreignKey: "userId" });
 Video.belongsToMany(User, { through: VideoLike, foreignKey: "videoId" });
@@ -107,13 +89,12 @@ User.hasMany(Subscription, { foreignKey: "subscribeTo" });
 User.belongsToMany(Video, { through: View, foreignKey: "userId" });
 Video.belongsToMany(User, { through: View, foreignKey: "videoId" });
 
-// Create admin user after models are defined
+// Create admin
 (async () => {
   try {
     const adminExists = await User.findOne({
       where: { email: "admin@movie.com" },
     });
-
     if (!adminExists) {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash("admin123", salt);
@@ -127,14 +108,12 @@ Video.belongsToMany(User, { through: View, foreignKey: "videoId" });
         isAdmin: true,
       });
 
-      console.log("✅ Admin user created successfully!");
-      console.log("Admin login: admin@movie.com / admin123");
+      console.log("✅ Admin user created (admin@movie.com / admin123)");
     }
   } catch (error) {
-    console.error("❌ Error creating admin user:", error);
+    console.error("❌ Error creating admin user:", error.message);
   }
 })();
 
 export { sequelize, User, Video, VideoLike, Comment, Subscription, View };
-
 export default sequelize;
